@@ -5,6 +5,7 @@ import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { ActivityItem } from "@/components/ActivityItem";
 import { ProjectManager } from "@/components/ProjectManager";
+import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 
 export const revalidate = 30;
 
@@ -40,7 +41,7 @@ async function getUserData(
   username: string,
   cursor?: string
 ): Promise<{
-  user: { id: string; username: string; avatar_url: string | null };
+  user: { id: string; username: string; avatar_url: string | null; bio: string | null };
   projects: ProjectSummary[];
   feed: FeedItem[];
   nextCursor: string | null;
@@ -55,7 +56,7 @@ async function getUserData(
 
   const { data: user } = await supabase
     .from("users")
-    .select("id, username, avatar_url")
+    .select("id, username, avatar_url, bio")
     .ilike("username", pattern)
     .maybeSingle();
 
@@ -190,9 +191,7 @@ export default async function UserPage({
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
             {user?.username ?? username}
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {projects.length} project{projects.length !== 1 ? "s" : ""}
-          </p>
+          <ProfileBioEditor bio={user.bio} isOwner={isOwner} />
         </div>
       </header>
 

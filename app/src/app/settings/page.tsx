@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { createInstallState } from "@/lib/github-app";
-import { ProjectManager } from "@/components/ProjectManager";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -23,10 +22,6 @@ export default async function SettingsPage() {
       <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
         Settings
       </h1>
-
-      <section className="mb-8">
-        <ProjectManager />
-      </section>
 
       {installAppUrl && (
         <section>
