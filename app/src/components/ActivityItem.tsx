@@ -15,6 +15,12 @@ type ActivityItemProps = {
   showUser?: boolean;
 };
 
+function formatDate(dateUtc: string | undefined): string {
+  if (!dateUtc) return "";
+  const [y, m, d] = dateUtc.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
 function formatRelative(timestamp: string | null | undefined): string {
   if (!timestamp) return "";
   const d = new Date(timestamp);
@@ -58,7 +64,7 @@ export function ActivityItem({
           <Link href={`/u/${user.username}`} className="shrink-0">
             <Image
               src={user.avatar_url}
-              alt=""
+              alt={user.username ?? ""}
               width={40}
               height={40}
               className="rounded-full"
@@ -97,7 +103,7 @@ export function ActivityItem({
             </span>
           </p>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {activity.date_utc}
+            {formatDate(activity.date_utc)}
             {timeRange && <> · {timeRange}</>}
             {activity.last_commit_at && (
               <> · {formatRelative(activity.last_commit_at)}</>
