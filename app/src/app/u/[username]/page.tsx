@@ -54,12 +54,16 @@ async function getUserData(
     .replace(/%/g, "\\%")
     .replace(/_/g, "\\_");
 
-  const { data: user } = await supabase
+  const { data: user, error: userError } = await supabase
     .from("users")
     .select("id, username, avatar_url, bio")
     .ilike("username", pattern)
     .maybeSingle();
 
+  if (userError) {
+    console.error("getUserData error:", userError.message);
+    return null;
+  }
   if (!user) return null;
 
   // Fetch user's active projects with repos

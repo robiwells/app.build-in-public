@@ -60,7 +60,7 @@ export function UserMenu({ username, avatarUrl, profileHref }: UserMenuProps) {
             onClick={() => setOpen(false)}
             className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
-            My profile
+            Profile
           </Link>
           <Link
             href="/settings"
