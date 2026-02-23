@@ -70,27 +70,23 @@ export async function PATCH(request: Request) {
     .eq("user_id", user.userId)
     .maybeSingle();
 
-  if (existing) {
-    const { error } = await supabase
-      .from("projects")
-      .update({
-        repo_full_name,
-        repo_url,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-  } else {
-    const { error } = await supabase.from("projects").insert({
-      user_id: user.userId,
+  if (!existing) {
+    return NextResponse.json(
+      { error: "No project yet; connect via GitHub App first" },
+      { status: 400 }
+    );
+  }
+
+  const { error } = await supabase
+    .from("projects")
+    .update({
       repo_full_name,
       repo_url,
-    });
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({

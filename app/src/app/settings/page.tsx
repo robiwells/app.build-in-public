@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase";
-import { SettingsForm } from "@/components/SettingsForm";
+import { createInstallState } from "@/lib/github-app";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -20,29 +20,11 @@ export default async function SettingsPage() {
     .eq("active", true)
     .maybeSingle();
 
-  const token = (session as { accessToken?: string }).accessToken;
-  if (!token) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-8">
-        <p className="text-zinc-600 dark:text-zinc-400">
-          No GitHub token. Please sign out and sign in again to change repo.
-        </p>
-      </main>
-    );
-  }
-
-  const res = await fetch("https://api.github.com/user/repos?per_page=100&sort=updated", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const repos = res.ok
-    ? ((await res.json()) as { private?: boolean; full_name?: string; html_url?: string; name?: string }[])
-        .filter((r) => !r.private)
-        .map((r) => ({
-          name: r.name ?? "",
-          full_name: r.full_name ?? "",
-          html_url: r.html_url ?? "",
-        }))
-    : [];
+  const appSlug = process.env.GITHUB_APP_SLUG;
+  const installAppUrl =
+    appSlug && user.userId
+      ? `https://github.com/apps/${appSlug}/installations/new?state=${encodeURIComponent(createInstallState(user.userId))}`
+      : null;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -64,11 +46,19 @@ export default async function SettingsPage() {
           "None"
         )}
       </p>
-      <SettingsForm
-        repos={repos}
-        currentRepo={project?.repo_full_name ?? null}
-        username={user.username ?? ""}
-      />
+      {installAppUrl && (
+        <div>
+          <a
+            href={installAppUrl}
+            className="inline-block rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            Connect with GitHub App
+          </a>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Install or reinstall the app to track a different repo.
+          </p>
+        </div>
+      )}
     </main>
   );
 }

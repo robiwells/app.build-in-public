@@ -5,7 +5,7 @@
 - Vercel account
 - Supabase project
 - GitHub OAuth App
-- GitHub repo with webhook (for the repo you track)
+- GitHub App (for auto-tracking commits; see section 5)
 
 ## 1. Supabase
 
@@ -47,24 +47,41 @@
    | `NEXT_PUBLIC_SUPABASE_URL`  | Supabase project URL                 |
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key   |
    | `SUPABASE_SECRET_KEY`       | Supabase secret key                  |
-   | `GITHUB_WEBHOOK_SECRET`     | Secret you set when creating the webhook |
 
 4. Deploy.
 
-## 4. GitHub Webhook (per tracked repo)
-
-1. In the GitHub repo: **Settings → Webhooks → Add webhook**.
-2. **Payload URL**: `https://<your-vercel-domain>/api/webhooks/github`
-3. **Content type**: `application/json`
-4. **Secret**: generate a random string (e.g. `openssl rand -hex 32`) and set it as `GITHUB_WEBHOOK_SECRET` in Vercel.
-5. **Events**: choose **Just the push event**.
-6. Save.
-
-## 5. Post-deploy checks
+## 4. Post-deploy checks
 
 - Open `/` and confirm the global feed (or empty state).
-- Sign in with GitHub; complete onboarding (pick a repo).
+- Sign in with GitHub; complete onboarding (Connect with GitHub App or pick a repo).
 - Confirm redirect to `/u/<username>`.
-- Push a commit to the tracked repo (or send a test webhook from GitHub).
-- Confirm an activity appears on `/` and on `/u/<username>`.
+- Push a commit to the tracked repo; confirm an activity appears on `/` and on `/u/<username>`.
 - Change the tracked repo under **Settings** and confirm it updates.
+
+---
+
+## 5. GitHub App (auto-tracking)
+
+To let users track commits without adding a webhook themselves, create a **GitHub App** (separate from the OAuth App) and configure it as follows.
+
+1. **Create app:** [GitHub → Developer settings → GitHub Apps → New GitHub App](https://github.com/settings/apps/new).
+2. **Setup URL (after install):** `https://<your-vercel-domain>/api/github-app/setup`
+3. **Webhook URL:** `https://<your-vercel-domain>/api/webhooks/github-app`
+4. **Webhook secret:** Generate (e.g. `openssl rand -hex 32`) → `GITHUB_APP_WEBHOOK_SECRET`
+5. **Permissions:** Repository → Contents: Read. Subscribe to **Push** (and optionally **Installation** / **installation_repositories**).
+6. After creating: note **App ID** → `GITHUB_APP_ID`, generate **Private key** → `GITHUB_APP_PRIVATE_KEY`, and the app’s **URL slug** → `GITHUB_APP_SLUG`.
+
+Add these to Vercel:
+
+| Variable                     | Description                          |
+| --------------------------- | ------------------------------------ |
+| `GITHUB_APP_ID`             | GitHub App ID                        |
+| `GITHUB_APP_PRIVATE_KEY`    | PEM private key (newlines as `\n`)    |
+| `GITHUB_APP_WEBHOOK_SECRET` | Same as webhook secret in app        |
+| `GITHUB_APP_SLUG`           | App URL slug (for Install App link) |
+
+**Local testing:** Add the same variables to `app/.env.local`. When creating the GitHub App, set **Setup URL** to `http://localhost:3000/api/github-app/setup` and **Webhook URL** to `http://localhost:3000/api/webhooks/github-app` (or use a tunnel like ngrok and point the app at that URL). The “Connect with GitHub App” button on onboarding only appears when `GITHUB_APP_SLUG` is set.
+
+**User flow:** Sign in (OAuth) → “Connect with GitHub App” → install app on repo → choose repo (or auto) → redirect to profile. Pushes are delivered via the app webhook; users do not configure a repo webhook.
+
+**Runbook:** Ensure the GitHub App’s **Setup URL** and **Webhook URL** point at your production domain (e.g. `https://<your-vercel-domain>/api/github-app/setup` and `https://<your-vercel-domain>/api/webhooks/github-app`). After changing the app’s webhook URL or secret, update `GITHUB_APP_WEBHOOK_SECRET` in Vercel and redeploy if needed.

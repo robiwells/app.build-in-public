@@ -7,9 +7,12 @@ type Repo = { name: string; full_name: string; html_url: string };
 export function RepoPicker({
   repos,
   username,
+  setupToken,
 }: {
   repos: Repo[];
   username: string;
+  /** When set, submit to GitHub App project API with this token (includes installation_id). */
+  setupToken?: string;
 }) {
   const [selected, setSelected] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,20 +26,26 @@ export function RepoPicker({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/projects", {
+      const url = setupToken ? "/api/github-app/project" : "/api/projects";
+      const body = setupToken
+        ? { token: setupToken, repo_full_name: repo.full_name, repo_url: repo.html_url }
+        : { repo_full_name: repo.full_name, repo_url: repo.html_url };
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          repo_full_name: repo.full_name,
-          repo_url: repo.html_url,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error || res.statusText);
         return;
       }
-      window.location.href = `/u/${username}`;
+      if (setupToken) {
+        const data = await res.json().catch(() => ({}));
+        window.location.href = (data as { redirect?: string }).redirect ?? `/u/${username}`;
+      } else {
+        window.location.href = `/u/${username}`;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
     } finally {

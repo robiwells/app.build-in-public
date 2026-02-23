@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { SignOutButton } from "@/components/SignOutButton";
 
 export async function Header() {
   const session = await auth();
@@ -29,14 +30,7 @@ export async function Header() {
               <span className="text-sm text-zinc-500 dark:text-zinc-400">
                 Signed in as {user.username}
               </span>
-              <form action="/api/auth/signout" method="POST">
-                <button
-                  type="submit"
-                  className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-                >
-                  Sign out
-                </button>
-              </form>
+              <SignOutButton />
             </>
           ) : (
             <Link
