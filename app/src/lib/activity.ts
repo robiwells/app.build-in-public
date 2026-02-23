@@ -66,6 +66,7 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
   if (!project) return;
 
   const commits = body.commits ?? [];
+  console.log("[activity] commit[0]", JSON.stringify(commits[0]));
   const commitEntries = parseCommits(commits);
   if (commitEntries.length === 0) return;
 
