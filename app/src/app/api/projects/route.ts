@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { createProject } from "@/lib/projects";
+import { addRepoToProject, createProject } from "@/lib/projects";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
@@ -51,7 +51,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 400 });
   }
 
-  let body: { title?: string; description?: string; url?: string };
+  let body: {
+    title?: string;
+    description?: string;
+    url?: string;
+    repos?: Array<{ repo_full_name: string; repo_url: string; installation_id: number }>;
+  };
   try {
     body = await request.json();
   } catch {
@@ -70,6 +75,23 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error }, { status: 500 });
+  }
+
+  if (projectId && body.repos?.length) {
+    for (const repo of body.repos) {
+      if (
+        !repo.repo_full_name ||
+        !repo.repo_url ||
+        typeof repo.installation_id !== "number"
+      ) {
+        continue;
+      }
+      await addRepoToProject(projectId, user.userId, {
+        repoFullName: repo.repo_full_name,
+        repoUrl: repo.repo_url,
+        installationId: repo.installation_id,
+      });
+    }
   }
 
   return NextResponse.json({ ok: true, projectId }, { status: 201 });

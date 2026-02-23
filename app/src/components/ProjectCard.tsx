@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Repo = {
   id: string;
@@ -15,6 +15,8 @@ type Project = {
   url: string | null;
   project_repos: Repo[];
 };
+
+type AvailableRepo = { full_name: string; html_url: string; installation_id: number };
 
 export function ProjectCard({
   project,
@@ -32,6 +34,29 @@ export function ProjectCard({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [availableRepos, setAvailableRepos] = useState<AvailableRepo[]>([]);
+  const [reposLoading, setReposLoading] = useState(false);
+  const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!editing || !editable) return;
+    setSelectedRepos(new Set(project.project_repos.map((r) => r.repo_full_name)));
+    setReposLoading(true);
+    fetch(`/api/repos/available?projectId=${encodeURIComponent(project.id)}`)
+      .then((r) => (r.ok ? r.json() : { repos: [] }))
+      .then((data: { repos?: AvailableRepo[] }) => setAvailableRepos(data.repos ?? []))
+      .catch(() => setAvailableRepos([]))
+      .finally(() => setReposLoading(false));
+  }, [editing, editable, project.id, project.project_repos]);
+
+  function toggleRepo(fullName: string) {
+    setSelectedRepos((prev) => {
+      const next = new Set(prev);
+      if (next.has(fullName)) next.delete(fullName);
+      else next.add(fullName);
+      return next;
+    });
+  }
 
   async function handleSave() {
     if (!title.trim()) return;
@@ -51,6 +76,25 @@ export function ProjectCard({
         const data = await res.json().catch(() => ({}));
         setError((data as { error?: string }).error ?? "Failed to save");
         return;
+      }
+      const currentFullNames = new Set(project.project_repos.map((r) => r.repo_full_name));
+      const toRemove = project.project_repos.filter((r) => !selectedRepos.has(r.repo_full_name));
+      const toAdd = availableRepos.filter(
+        (r) => selectedRepos.has(r.full_name) && !currentFullNames.has(r.full_name)
+      );
+      for (const repo of toRemove) {
+        await fetch(`/api/projects/${project.id}/repos/${repo.id}`, { method: "DELETE" });
+      }
+      for (const repo of toAdd) {
+        await fetch(`/api/projects/${project.id}/repos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repo_full_name: repo.full_name,
+            repo_url: repo.html_url,
+            installation_id: repo.installation_id,
+          }),
+        });
       }
       setEditing(false);
       onUpdated?.();
@@ -117,6 +161,51 @@ export function ProjectCard({
             placeholder="Project URL (optional)"
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
           />
+          {/* Repo multi-select when editing */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Repositories
+            </label>
+            <p className="mb-2 text-xs text-zinc-400 dark:text-zinc-500">
+              Select which repos to track under this project.
+            </p>
+            {reposLoading ? (
+              <p className="rounded-lg border border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                Loading repos…
+              </p>
+            ) : availableRepos.length === 0 ? (
+              <p className="rounded-lg border border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                No repos available. Connect a repo via Settings → GitHub.
+              </p>
+            ) : (
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-700">
+                {availableRepos.map((r) => (
+                  <label
+                    key={r.full_name}
+                    className={[
+                      "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                      selectedRepos.has(r.full_name)
+                        ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                        : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/50",
+                    ].join(" ")}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedRepos.has(r.full_name)}
+                      onChange={() => toggleRepo(r.full_name)}
+                      className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-700"
+                    />
+                    <span className="truncate">{r.full_name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {selectedRepos.size > 0 && (
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {selectedRepos.size} repo{selectedRepos.size !== 1 ? "s" : ""} selected
+              </p>
+            )}
+          </div>
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex gap-2">
             <button
