@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       first_commit_at,
       last_commit_at,
       github_link,
+      commit_messages,
       user_id,
       project_id,
       users!inner(id, username, avatar_url),
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
         first_commit_at: row.first_commit_at,
         last_commit_at: row.last_commit_at,
         github_link: row.github_link,
+        commit_messages: row.commit_messages,
       },
     };
   });

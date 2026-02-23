@@ -7,8 +7,10 @@ type ActivityItemProps = {
   activity: {
     date_utc?: string;
     commit_count?: number;
+    first_commit_at?: string | null;
     last_commit_at?: string | null;
     github_link?: string | null;
+    commit_messages?: string[] | null;
   };
   showUser?: boolean;
 };
@@ -25,6 +27,18 @@ function formatRelative(timestamp: string | null | undefined): string {
   return d.toLocaleDateString();
 }
 
+function formatTimeRange(
+  first: string | null | undefined,
+  last: string | null | undefined
+): string {
+  if (!first || !last) return "";
+  const fmt = (ts: string) =>
+    new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  const t1 = fmt(first);
+  const t2 = fmt(last);
+  return t1 === t2 ? t1 : `${t1} – ${t2}`;
+}
+
 export function ActivityItem({
   user,
   project,
@@ -34,6 +48,8 @@ export function ActivityItem({
   const count = activity.commit_count ?? 0;
   const repoName = project?.repo_full_name ?? "repo";
   const repoUrl = project?.repo_url ?? "#";
+  const timeRange = formatTimeRange(activity.first_commit_at, activity.last_commit_at);
+  const messages = activity.commit_messages ?? [];
 
   return (
     <article className="border-b border-zinc-200 py-4 last:border-0 dark:border-zinc-800">
@@ -82,6 +98,7 @@ export function ActivityItem({
           </p>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             {activity.date_utc}
+            {timeRange && <> · {timeRange}</>}
             {activity.last_commit_at && (
               <> · {formatRelative(activity.last_commit_at)}</>
             )}
@@ -99,6 +116,16 @@ export function ActivityItem({
               </>
             )}
           </p>
+          {messages.length > 0 && (
+            <ul className="mt-2 space-y-0.5 text-sm text-zinc-600 dark:text-zinc-400">
+              {messages.slice(0, 3).map((msg, i) => (
+                <li key={i} className="truncate">· {msg}</li>
+              ))}
+              {messages.length > 3 && (
+                <li className="text-zinc-400 dark:text-zinc-500">+ {messages.length - 3} more</li>
+              )}
+            </ul>
+          )}
         </div>
       </div>
     </article>

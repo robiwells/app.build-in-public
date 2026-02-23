@@ -11,8 +11,10 @@ type FeedItem = {
     id?: string;
     date_utc?: string;
     commit_count?: number;
+    first_commit_at?: string | null;
     last_commit_at?: string | null;
     github_link?: string | null;
+    commit_messages?: string[] | null;
   };
 };
 
@@ -30,6 +32,7 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
       first_commit_at,
       last_commit_at,
       github_link,
+      commit_messages,
       user_id,
       project_id,
       users!inner(id, username, avatar_url),
@@ -69,8 +72,10 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
         id: row.id as string | undefined,
         date_utc: row.date_utc as string | undefined,
         commit_count: row.commit_count as number | undefined,
+        first_commit_at: row.first_commit_at as string | null | undefined,
         last_commit_at: row.last_commit_at as string | null | undefined,
         github_link: row.github_link as string | null | undefined,
+        commit_messages: row.commit_messages as string[] | null | undefined,
       },
     };
   });

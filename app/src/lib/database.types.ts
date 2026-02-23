@@ -81,6 +81,7 @@ export interface Database {
           first_commit_at: string | null;
           last_commit_at: string | null;
           github_link: string | null;
+          commit_messages: string[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -93,6 +94,7 @@ export interface Database {
           first_commit_at?: string | null;
           last_commit_at?: string | null;
           github_link?: string | null;
+          commit_messages?: string[] | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -105,6 +107,7 @@ export interface Database {
           first_commit_at?: string | null;
           last_commit_at?: string | null;
           github_link?: string | null;
+          commit_messages?: string[] | null;
           created_at?: string;
           updated_at?: string;
         };

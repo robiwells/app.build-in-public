@@ -34,6 +34,7 @@ export async function GET(
       first_commit_at,
       last_commit_at,
       github_link,
+      commit_messages,
       project_id,
       projects!inner(repo_full_name, repo_url, active)
     `
@@ -73,6 +74,7 @@ export async function GET(
         first_commit_at: row.first_commit_at,
         last_commit_at: row.last_commit_at,
         github_link: row.github_link,
+        commit_messages: row.commit_messages,
       },
     };
   });
