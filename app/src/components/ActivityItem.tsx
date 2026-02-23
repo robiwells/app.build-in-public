@@ -14,6 +14,7 @@ type ActivityItemProps = {
     commit_messages?: string[] | null;
   };
   showUser?: boolean;
+  projectHref?: string;
 };
 
 function formatDate(dateUtc: string | undefined): string {
@@ -52,6 +53,7 @@ export function ActivityItem({
   repo,
   activity,
   showUser = true,
+  projectHref,
 }: ActivityItemProps) {
   const count = activity.commit_count ?? 0;
   const repoName = repo?.repo_full_name ?? "repo";
@@ -92,7 +94,13 @@ export function ActivityItem({
                 {" · "}
               </>
             )}
-            <span className="font-medium">{projectTitle ?? repoName}</span>
+            {projectHref ? (
+              <Link href={projectHref} className="font-medium hover:underline">
+                {projectTitle ?? repoName}
+              </Link>
+            ) : (
+              <span className="font-medium">{projectTitle ?? repoName}</span>
+            )}
           </p>
 
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">

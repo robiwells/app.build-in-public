@@ -6,7 +6,7 @@ export const revalidate = 30;
 
 type FeedItem = {
   user?: { username?: string; avatar_url?: string | null } | null;
-  project?: { title?: string } | null;
+  project?: { title?: string; id?: string } | null;
   repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     id?: string;
@@ -70,7 +70,7 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
         ? { username: users.username as string, avatar_url: users.avatar_url as string | null }
         : null,
       project: projects
-        ? { title: projects.title as string }
+        ? { title: projects.title as string, id: projects.id as string }
         : null,
       repo: projectRepos
         ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
@@ -110,16 +110,23 @@ export default async function HomePage({
       ) : (
         <>
           <div className="space-y-0">
-            {feed.map((item) => (
-              <ActivityItem
-                key={item.activity.id ?? item.activity.date_utc}
-                user={item.user}
-                project={item.project}
-                repo={item.repo}
-                activity={item.activity}
-                showUser={true}
-              />
-            ))}
+            {feed.map((item) => {
+              const projectHref =
+                item.user?.username && item.project?.id
+                  ? `/u/${item.user.username}/projects/${item.project.id}`
+                  : undefined;
+              return (
+                <ActivityItem
+                  key={item.activity.id ?? item.activity.date_utc}
+                  user={item.user}
+                  project={item.project}
+                  repo={item.repo}
+                  activity={item.activity}
+                  showUser={true}
+                  projectHref={projectHref}
+                />
+              );
+            })}
           </div>
           {nextCursor && (
             <div className="mt-6">
