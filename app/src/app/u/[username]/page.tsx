@@ -1,34 +1,97 @@
 import Image from "next/image";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { createSupabaseAdmin } from "@/lib/supabase";
 import { ActivityItem } from "@/components/ActivityItem";
 
-async function getUserFeed(username: string, cursor?: string) {
-  const headersList = await headers();
-  const host = headersList.get("host") ?? "localhost:3000";
-  const protocol = host.includes("localhost") ? "http" : "https";
-  const base = `${protocol}://${host}`;
-  const url = new URL(`/api/feed/u/${encodeURIComponent(username)}`, base);
-  url.searchParams.set("limit", "20");
-  if (cursor) url.searchParams.set("cursor", cursor);
-  const res = await fetch(url.toString(), { next: { revalidate: 30 } });
-  if (res.status === 404) return null;
-  if (!res.ok) return null;
-  return res.json() as Promise<{
-    user?: { username?: string; avatar_url?: string | null };
-    feed?: Array<{
-      project?: { repo_full_name?: string; repo_url?: string } | null;
+export const revalidate = 30;
+
+type FeedItem = {
+  project?: { repo_full_name?: string; repo_url?: string } | null;
+  activity: {
+    id?: string;
+    date_utc?: string;
+    commit_count?: number;
+    last_commit_at?: string | null;
+    github_link?: string | null;
+  };
+};
+
+async function getUserFeed(
+  username: string,
+  cursor?: string
+): Promise<{
+  user: { username: string; avatar_url: string | null };
+  feed: FeedItem[];
+  nextCursor: string | null;
+} | null> {
+  const supabase = createSupabaseAdmin();
+  const limit = 20;
+
+  const pattern = username
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id, username, avatar_url")
+    .ilike("username", pattern)
+    .maybeSingle();
+
+  if (!user) return null;
+
+  let query = supabase
+    .from("activities")
+    .select(
+      `
+      id,
+      date_utc,
+      commit_count,
+      first_commit_at,
+      last_commit_at,
+      github_link,
+      project_id,
+      projects!inner(repo_full_name, repo_url, active)
+    `
+    )
+    .eq("user_id", user.id)
+    .eq("projects.active", true)
+    .order("last_commit_at", { ascending: false })
+    .limit(limit + 1);
+
+  if (cursor) {
+    query = query.lt("last_commit_at", cursor);
+  }
+
+  const { data: rows, error } = await query;
+
+  if (error || !rows) return { user, feed: [], nextCursor: null };
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor =
+    hasMore && items.length > 0
+      ? (items[items.length - 1] as { last_commit_at?: string | null }).last_commit_at ?? null
+      : null;
+
+  const feed = items.map((row: Record<string, unknown>) => {
+    const projects = row.projects as Record<string, unknown> | null;
+    return {
+      project: projects
+        ? { repo_full_name: projects.repo_full_name as string, repo_url: projects.repo_url as string }
+        : null,
       activity: {
-        id?: string;
-        date_utc?: string;
-        commit_count?: number;
-        last_commit_at?: string | null;
-        github_link?: string | null;
-      };
-    }>;
-    nextCursor?: string | null;
-  }>;
+        id: row.id as string | undefined,
+        date_utc: row.date_utc as string | undefined,
+        commit_count: row.commit_count as number | undefined,
+        last_commit_at: row.last_commit_at as string | null | undefined,
+        github_link: row.github_link as string | null | undefined,
+      },
+    };
+  });
+
+  return { user, feed, nextCursor };
 }
 
 export default async function UserPage({
@@ -44,7 +107,7 @@ export default async function UserPage({
 
   if (!data) notFound();
 
-  const { user, feed = [], nextCursor } = data;
+  const { user, feed, nextCursor } = data;
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">

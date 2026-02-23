@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { createSupabaseAdmin } from "@/lib/supabase";
+import { upsertProject } from "@/lib/projects";
 import { NextResponse } from "next/server";
 import { verifySetupToken } from "@/lib/github-app";
 
@@ -33,37 +33,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = createSupabaseAdmin();
-  const { data: existing } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("user_id", user.userId)
-    .maybeSingle();
-
-  if (existing) {
-    const { error } = await supabase
-      .from("projects")
-      .update({
-        active: true,
-        repo_full_name,
-        repo_url,
-        installation_id: installationId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-  } else {
-    const { error } = await supabase.from("projects").insert({
-      user_id: user.userId,
-      repo_full_name,
-      repo_url,
-      installation_id: installationId,
-    });
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  const { error } = await upsertProject(user.userId, {
+    repoFullName: repo_full_name,
+    repoUrl: repo_url,
+    installationId,
+  });
+  if (error) {
+    return NextResponse.json({ error }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, redirect: `/u/${user.username}` });

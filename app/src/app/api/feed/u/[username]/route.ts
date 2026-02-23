@@ -35,10 +35,11 @@ export async function GET(
       last_commit_at,
       github_link,
       project_id,
-      projects!inner(repo_full_name, repo_url)
+      projects!inner(repo_full_name, repo_url, active)
     `
     )
     .eq("user_id", user.id)
+    .eq("projects.active", true)
     .order("last_commit_at", { ascending: false })
     .limit(limit + 1);
 

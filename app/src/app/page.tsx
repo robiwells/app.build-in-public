@@ -1,20 +1,8 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { createSupabaseAdmin } from "@/lib/supabase";
 import { ActivityItem } from "@/components/ActivityItem";
 
-async function getFeed(cursor?: string) {
-  const headersList = await headers();
-  const host = headersList.get("host") ?? "localhost:3000";
-  const protocol = host.includes("localhost") ? "http" : "https";
-  const base = `${protocol}://${host}`;
-  const url = new URL("/api/feed", base);
-  url.searchParams.set("limit", "20");
-  if (cursor) url.searchParams.set("cursor", cursor);
-  const res = await fetch(url.toString(), { next: { revalidate: 30 } });
-  if (!res.ok) return { feed: [] as FeedItem[], nextCursor: null as string | null };
-  const data = (await res.json()) as { feed?: FeedItem[]; nextCursor?: string | null };
-  return { feed: data.feed ?? [], nextCursor: data.nextCursor ?? null };
-}
+export const revalidate = 30;
 
 type FeedItem = {
   user?: { username?: string; avatar_url?: string | null } | null;
@@ -27,6 +15,68 @@ type FeedItem = {
     github_link?: string | null;
   };
 };
+
+async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor: string | null }> {
+  const supabase = createSupabaseAdmin();
+  const limit = 20;
+
+  let query = supabase
+    .from("activities")
+    .select(
+      `
+      id,
+      date_utc,
+      commit_count,
+      first_commit_at,
+      last_commit_at,
+      github_link,
+      user_id,
+      project_id,
+      users!inner(id, username, avatar_url),
+      projects!inner(repo_full_name, repo_url, active)
+    `
+    )
+    .eq("projects.active", true)
+    .order("last_commit_at", { ascending: false })
+    .limit(limit + 1);
+
+  if (cursor) {
+    query = query.lt("last_commit_at", cursor);
+  }
+
+  const { data: rows, error } = await query;
+
+  if (error || !rows) return { feed: [], nextCursor: null };
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor =
+    hasMore && items.length > 0
+      ? (items[items.length - 1] as { last_commit_at?: string | null }).last_commit_at ?? null
+      : null;
+
+  const feed = items.map((row: Record<string, unknown>) => {
+    const users = row.users as Record<string, unknown> | null;
+    const projects = row.projects as Record<string, unknown> | null;
+    return {
+      user: users
+        ? { username: users.username as string, avatar_url: users.avatar_url as string | null }
+        : null,
+      project: projects
+        ? { repo_full_name: projects.repo_full_name as string, repo_url: projects.repo_url as string }
+        : null,
+      activity: {
+        id: row.id as string | undefined,
+        date_utc: row.date_utc as string | undefined,
+        commit_count: row.commit_count as number | undefined,
+        last_commit_at: row.last_commit_at as string | null | undefined,
+        github_link: row.github_link as string | null | undefined,
+      },
+    };
+  });
+
+  return { feed, nextCursor };
+}
 
 export default async function HomePage({
   searchParams,

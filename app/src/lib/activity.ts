@@ -37,19 +37,24 @@ function groupByUtcDate(dates: Date[]): Map<string, { first: Date; last: Date; c
   return map;
 }
 
-export async function processPushEvent(payload: unknown): Promise<void> {
+export async function processPushEvent(payload: unknown, deliveryId?: string): Promise<void> {
   const body = payload as PushPayload;
   const repoFullName = body.repository?.full_name;
   if (!repoFullName) return;
 
   const supabase = createSupabaseAdmin();
   // Case-insensitive match (GitHub may send different casing than we stored)
-  const { data: project } = await supabase
+  const { data: project, error: projectError } = await supabase
     .from("projects")
     .select("id, user_id")
     .eq("active", true)
     .ilike("repo_full_name", repoFullName.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_"))
     .maybeSingle();
+
+  if (projectError) {
+    console.error("[activity] project lookup failed", { error: projectError, repo: repoFullName, deliveryId });
+    return;
+  }
 
   if (!project) return;
 
@@ -66,12 +71,17 @@ export async function processPushEvent(payload: unknown): Promise<void> {
   for (const [dateUtc, { first, last, count }] of byDate) {
     const githubLink = timestamps.length === 1 ? (lastCommit?.url ?? compareUrl) : compareUrl;
 
-    const { data: existing } = await supabase
+    const { data: existing, error: readError } = await supabase
       .from("activities")
       .select("commit_count, first_commit_at, last_commit_at")
       .eq("user_id", project.user_id)
       .eq("date_utc", dateUtc)
       .maybeSingle();
+
+    if (readError) {
+      console.error("[activity] existing activity read failed", { error: readError, repo: repoFullName, date: dateUtc, deliveryId });
+      continue;
+    }
 
     const prevFirst = existing?.first_commit_at ? new Date(existing.first_commit_at) : null;
     const prevLast = existing?.last_commit_at ? new Date(existing.last_commit_at) : null;
@@ -79,7 +89,7 @@ export async function processPushEvent(payload: unknown): Promise<void> {
     const firstCommitAt = prevFirst && prevFirst < first ? prevFirst : first;
     const lastCommitAt = prevLast && prevLast > last ? prevLast : last;
 
-    await supabase.from("activities").upsert(
+    const { error: upsertError } = await supabase.from("activities").upsert(
       {
         user_id: project.user_id,
         project_id: project.id,
@@ -92,5 +102,9 @@ export async function processPushEvent(payload: unknown): Promise<void> {
       },
       { onConflict: "user_id,date_utc" }
     );
+
+    if (upsertError) {
+      console.error("[activity] upsert failed", { error: upsertError, repo: repoFullName, date: dateUtc, deliveryId });
+    }
   }
 }

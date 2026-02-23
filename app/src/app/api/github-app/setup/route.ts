@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createSupabaseAdmin } from "@/lib/supabase";
+import { upsertProject } from "@/lib/projects";
 import {
   verifyInstallState,
   createSetupToken,
@@ -56,41 +56,16 @@ export async function GET(request: Request) {
   }
 
   if (repos.length === 1) {
-    const supabase = createSupabaseAdmin();
-    const { data: existing } = await supabase
-      .from("projects")
-      .select("id")
-      .eq("user_id", user.userId)
-      .maybeSingle();
     const repo = repos[0];
-    if (existing) {
-      const { error: updateError } = await supabase
-        .from("projects")
-        .update({
-          active: true,
-          repo_full_name: repo.full_name,
-          repo_url: repo.html_url,
-          installation_id: installationId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-      if (updateError) {
-        return NextResponse.redirect(
-          new URL("/onboarding?error=invalid_setup", request.url).toString()
-        );
-      }
-    } else {
-      const { error: insertError } = await supabase.from("projects").insert({
-        user_id: user.userId,
-        repo_full_name: repo.full_name,
-        repo_url: repo.html_url,
-        installation_id: installationId,
-      });
-      if (insertError) {
-        return NextResponse.redirect(
-          new URL("/onboarding?error=invalid_setup", request.url).toString()
-        );
-      }
+    const { error } = await upsertProject(user.userId, {
+      repoFullName: repo.full_name,
+      repoUrl: repo.html_url,
+      installationId,
+    });
+    if (error) {
+      return NextResponse.redirect(
+        new URL("/onboarding?error=invalid_setup", request.url).toString()
+      );
     }
     return NextResponse.redirect(
       new URL(`/u/${user.username}`, request.url).toString()

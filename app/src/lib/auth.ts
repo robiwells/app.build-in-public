@@ -33,8 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (dbUser?.id) (user as Record<string, unknown>).dbUserId = dbUser.id;
       return true;
     },
-    async jwt({ token, user, profile, account }) {
-      if (account?.access_token) token.accessToken = account.access_token;
+    async jwt({ token, user, profile }) {
       if (user && (user as Record<string, unknown>).dbUserId) {
         token.userId = (user as Record<string, unknown>).dbUserId as string;
         token.username =
@@ -48,7 +47,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         u.userId = token.userId;
         u.username = token.username;
       }
-      (session as unknown as Record<string, unknown>).accessToken = token.accessToken;
       return session;
     },
     async redirect({ url, baseUrl }) {
