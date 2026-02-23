@@ -207,6 +207,32 @@ export interface Database {
         };
         Relationships: [];
       };
+      user_github_installations: {
+        Row: {
+          user_id: string;
+          installation_id: number;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          installation_id: number;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          installation_id?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_github_installations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
