@@ -85,3 +85,8 @@ Add these to Vercel:
 **User flow:** Sign in (OAuth) → “Connect with GitHub App” → install app on repo → choose repo (or auto) → redirect to profile. Pushes are delivered via the app webhook; users do not configure a repo webhook.
 
 **Runbook:** Ensure the GitHub App’s **Setup URL** and **Webhook URL** point at your production domain (e.g. `https://<your-vercel-domain>/api/github-app/setup` and `https://<your-vercel-domain>/api/webhooks/github-app`). After changing the app’s webhook URL or secret, update `GITHUB_APP_WEBHOOK_SECRET` in Vercel and redeploy if needed.
+
+**GitHub App URL checklist (do not mix these up):**
+- **Setup URL (Post installation):** `https://<domain>/api/github-app/setup` — where GitHub sends the user *after* they install the app (required for redirect and project creation).
+- **Webhook URL:** `https://<domain>/api/webhooks/github-app` — where GitHub sends *push* and *installation* events (not the OAuth callback).
+- **Callback URL** (in “Identifying and authorizing users”): only for OAuth; can be your homepage or leave as-is if you don’t use “Request user authorization during installation.”
