@@ -24,7 +24,7 @@ type ProjectSummary = {
 };
 
 type FeedItem = {
-  project?: { title?: string } | null;
+  project?: { title?: string; id?: string } | null;
   repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     id?: string;
@@ -132,7 +132,7 @@ async function getUserData(
     const proj = row.projects as Record<string, unknown> | null;
     const projectRepos = row.project_repos as Record<string, unknown> | null;
     return {
-      project: proj ? { title: proj.title as string } : null,
+      project: proj ? { title: proj.title as string, id: proj.id as string } : null,
       repo: projectRepos
         ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
         : null,
@@ -202,7 +202,7 @@ export default async function UserPage({
       {/* Projects section */}
       {isOwner ? (
         <section className="mb-8">
-          <ProjectManager />
+          <ProjectManager username={username} />
         </section>
       ) : projects.length > 0 ? (
         <section className="mb-8">
@@ -211,44 +211,35 @@ export default async function UserPage({
           </h2>
           <div className="space-y-3">
             {projects.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-              >
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
-                  {p.title}
-                </h3>
-                {p.description && (
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    {p.description}
-                  </p>
-                )}
-                {p.url && (
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1 inline-block text-sm text-zinc-500 hover:underline dark:text-zinc-400"
-                  >
-                    {p.url}
-                  </a>
-                )}
-                {p.project_repos.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {p.project_repos.map((repo) => (
-                      <a
-                        key={repo.id}
-                        href={repo.repo_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block rounded-lg bg-zinc-50 px-3 py-1.5 text-sm text-zinc-700 hover:underline dark:bg-zinc-800/50 dark:text-zinc-300"
-                      >
-                        {repo.repo_full_name}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Link key={p.id} href={`/u/${username}/projects/${p.id}`}>
+                <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    {p.title}
+                  </h3>
+                  {p.description && (
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                      {p.description}
+                    </p>
+                  )}
+                  {p.url && (
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                      {p.url}
+                    </p>
+                  )}
+                  {p.project_repos.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {p.project_repos.map((repo) => (
+                        <p
+                          key={repo.id}
+                          className="block rounded-lg bg-zinc-50 px-3 py-1.5 text-sm text-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300"
+                        >
+                          {repo.repo_full_name}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Link>
             ))}
           </div>
         </section>
@@ -264,16 +255,22 @@ export default async function UserPage({
         ) : (
           <>
             <div className="space-y-0">
-              {feed.map((item) => (
-                <ActivityItem
-                  key={item.activity.id ?? item.activity.date_utc}
-                  user={null}
-                  project={item.project}
-                  repo={item.repo}
-                  activity={item.activity}
-                  showUser={false}
-                />
-              ))}
+              {feed.map((item) => {
+                const projectHref = item.project?.id
+                  ? `/u/${username}/projects/${item.project.id}`
+                  : undefined;
+                return (
+                  <ActivityItem
+                    key={item.activity.id ?? item.activity.date_utc}
+                    user={null}
+                    project={item.project}
+                    repo={item.repo}
+                    activity={item.activity}
+                    showUser={false}
+                    projectHref={projectHref}
+                  />
+                );
+              })}
             </div>
             {nextCursor && (
               <div className="mt-6">

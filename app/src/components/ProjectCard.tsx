@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Repo = {
   id: string;
@@ -22,10 +23,12 @@ export function ProjectCard({
   project,
   editable,
   onUpdated,
+  projectHref,
 }: {
   project: Project;
   editable: boolean;
   onUpdated?: () => void;
+  projectHref?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(project.title);
@@ -237,7 +240,13 @@ export function ProjectCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {project.title}
+            {projectHref ? (
+              <Link href={projectHref} className="hover:underline">
+                {project.title}
+              </Link>
+            ) : (
+              project.title
+            )}
           </h3>
           {project.description && (
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">

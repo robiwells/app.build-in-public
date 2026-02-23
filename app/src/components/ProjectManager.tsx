@@ -18,7 +18,7 @@ type Project = {
   project_repos: Repo[];
 };
 
-export function ProjectManager() {
+export function ProjectManager({ username }: { username?: string } = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,6 +65,7 @@ export function ProjectManager() {
               project={p}
               editable={true}
               onUpdated={load}
+              projectHref={username ? `/u/${username}/projects/${p.id}` : undefined}
             />
           ))}
         </div>
