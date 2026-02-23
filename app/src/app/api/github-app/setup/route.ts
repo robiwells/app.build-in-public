@@ -5,6 +5,7 @@ import {
   createSetupToken,
   listInstallationRepos,
 } from "@/lib/github-app";
+import { createSupabaseAdmin } from "@/lib/supabase";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -54,7 +55,16 @@ export async function GET(request: Request) {
     );
   }
 
-  // Always redirect to the repo picker so the user can choose which project to add to
+  // Record this installation for the user so "available repos" works even if they skip adding to a project
+  const supabase = createSupabaseAdmin();
+  await supabase
+    .from("user_github_installations")
+    .upsert(
+      { user_id: userId, installation_id: installationId },
+      { onConflict: "user_id,installation_id", ignoreDuplicates: true }
+    );
+
+  // Redirect to the repo picker; user can add repos to a project or skip
   const setupToken = createSetupToken(installationId);
   const base = new URL("/onboarding/github-app", request.url);
   base.searchParams.set("token", setupToken);

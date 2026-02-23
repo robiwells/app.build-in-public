@@ -49,9 +49,19 @@ export async function GET(request: Request) {
       ? rows.filter((r) => r.project_id !== projectId).map((r) => r.repo_full_name)
       : rows.map((r) => r.repo_full_name)
   );
-  const installationIds = [
+
+  // Installation IDs from repos already linked to projects, plus any from connector flow (user_github_installations)
+  const fromProjectRepos = [
     ...new Set(rows.map((r) => r.installation_id).filter(Boolean)),
   ] as number[];
+  const { data: userInstallations } = await supabase
+    .from("user_github_installations")
+    .select("installation_id")
+    .eq("user_id", user.userId);
+  const fromUserInstallations = (userInstallations ?? [])
+    .map((r) => r.installation_id)
+    .filter((id): id is number => typeof id === "number");
+  const installationIds = [...new Set([...fromProjectRepos, ...fromUserInstallations])];
 
   if (installationIds.length === 0) {
     return NextResponse.json({ repos: [] });

@@ -43,7 +43,7 @@ export function RepoPicker({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (selectedRepos.size === 0) {
-      setError("Select at least one repository");
+      setError("Select at least one repository to add to a project");
       return;
     }
     if (isNewProject && !newProjectTitle.trim()) {
@@ -86,10 +86,10 @@ export function RepoPicker({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Project selector */}
+      {/* Project selector (optional — user can skip) */}
       <div>
         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Add to project
+          Add repos to a project (optional)
         </label>
         <select
           value={projectChoice}
@@ -159,15 +159,25 @@ export function RepoPicker({
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
-      <button
-        type="submit"
-        disabled={loading || selectedRepos.size === 0}
-        className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-      >
-        {loading
-          ? "Saving…"
-          : `Track ${selectedRepos.size || ""} repo${selectedRepos.size !== 1 ? "s" : ""}`}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="submit"
+          disabled={loading || selectedRepos.size === 0}
+          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
+          {loading
+            ? "Saving…"
+            : selectedRepos.size > 0
+              ? `Add to project (${selectedRepos.size} repo${selectedRepos.size !== 1 ? "s" : ""})`
+              : "Add to project"}
+        </button>
+        <a
+          href={`/u/${username}`}
+          className="text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        >
+          Skip for now — I’ll add repos to projects later
+        </a>
+      </div>
     </form>
   );
 }

@@ -46,10 +46,10 @@ export default async function OnboardingGitHubAppPage({ searchParams }: Props) {
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-        Add a repo to a project
+        GitHub connected
       </h1>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-        Commits will be tracked automatically — no webhook setup needed.
+        Optionally add repos to a project to track commits on your activity feed. You can skip and add repos later from Settings.
       </p>
       <RepoPicker
         repos={repos}
