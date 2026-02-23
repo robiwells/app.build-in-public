@@ -12,10 +12,12 @@ export async function GET(
 
   const supabase = createSupabaseAdmin();
 
+  // Case-insensitive username lookup (GitHub usernames are lowercase but DB may differ)
+  const pattern = username.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
   const { data: user } = await supabase
     .from("users")
     .select("id, username, avatar_url")
-    .eq("username", username)
+    .ilike("username", pattern)
     .maybeSingle();
 
   if (!user) {

@@ -1,12 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ActivityItem } from "@/components/ActivityItem";
 
 async function getUserFeed(username: string, cursor?: string) {
-  const base = process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : "http://localhost:3000";
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost:3000";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const base = `${protocol}://${host}`;
   const url = new URL(`/api/feed/u/${encodeURIComponent(username)}`, base);
   url.searchParams.set("limit", "20");
   if (cursor) url.searchParams.set("cursor", cursor);
