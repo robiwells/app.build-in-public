@@ -134,6 +134,7 @@ No login is required to view anything.
 
 ## 5. Minimal Architecture (V1)
 
+- **Project layout**: The application lives in an **`app`** folder at the same level as `docs` (i.e. `app/` and `docs/` are siblings at the repo root).
 - **Frontend**: Next.js app (deployed on **Vercel**) with the following pages:
   - `/` – Global activity feed (includes “Sign in with GitHub” button for authenticated actions).
   - `/u/:username` – Per-user activity feed.
@@ -145,6 +146,8 @@ No login is required to view anything.
     - GitHub webhook endpoint (or polling worker job).
     - Activity feed queries (global and per-user).
 - **Database**: **Supabase** (hosted PostgreSQL):
+  - Schema and changes are managed with the **Supabase CLI** (migrations).
+  - Tables: `users`, `projects`/`tracked_repos`, `activities` as below.
   - `users`: id, github_id, username, avatar_url, created_at.
   - `projects` or `tracked_repos`: id, user_id, repo_full_name, repo_url, created_at, active (bool).
   - `activities`: id, user_id, project_id, date_utc, commit_count, first_commit_at, last_commit_at, github_link.
