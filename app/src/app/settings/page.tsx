@@ -31,16 +31,16 @@ export default async function SettingsPage() {
       {installAppUrl && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-            GitHub App
+            Connectors
           </h2>
           <a
             href={installAppUrl}
             className="inline-block rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
-            Connect with GitHub App
+            GitHub
           </a>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Install or reconfigure the GitHub App to track repos across your projects.
+            Install or reconfigure the connectors to automatically track progress across your projects.
           </p>
         </section>
       )}

@@ -94,7 +94,6 @@ export async function addRepoToProject(
 ): Promise<{ repoId: string | null; error: string | null }> {
   const supabase = createSupabaseAdmin();
 
-  // Verify the project belongs to this user
   const { data: project } = await supabase
     .from("projects")
     .select("id")
@@ -105,6 +104,36 @@ export async function addRepoToProject(
 
   if (!project) {
     return { repoId: null, error: "Project not found" };
+  }
+
+  // Check if a row already exists for this user + repo (possibly soft-deleted)
+  const { data: existing } = await supabase
+    .from("project_repos")
+    .select("id, active, project_id")
+    .eq("user_id", userId)
+    .eq("repo_full_name", params.repoFullName)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.active) {
+      return { repoId: null, error: "This repo is already tracked" };
+    }
+    // Re-activate and move to the target project
+    const { error } = await supabase
+      .from("project_repos")
+      .update({
+        active: true,
+        project_id: projectId,
+        installation_id: params.installationId,
+        repo_url: params.repoUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+    if (error) {
+      console.error("[projects] re-activate repo failed", { error, projectId, userId });
+      return { repoId: null, error: error.message };
+    }
+    return { repoId: existing.id, error: null };
   }
 
   const { data, error } = await supabase
@@ -120,9 +149,6 @@ export async function addRepoToProject(
     .single();
 
   if (error) {
-    if (error.code === "23505") {
-      return { repoId: null, error: "This repo is already tracked" };
-    }
     console.error("[projects] add repo failed", { error, projectId, userId });
     return { repoId: null, error: error.message };
   }
@@ -136,9 +162,10 @@ export async function removeRepoFromProject(
 ): Promise<{ error: string | null }> {
   const supabase = createSupabaseAdmin();
 
+  // Soft-delete so historical activity posts retain their repo info.
   const { error } = await supabase
     .from("project_repos")
-    .delete()
+    .update({ active: false, updated_at: new Date().toISOString() })
     .eq("id", repoId)
     .eq("project_id", projectId)
     .eq("user_id", userId);
@@ -151,21 +178,23 @@ export async function removeRepoFromProject(
 }
 
 /**
- * Create a project and link a repo in one step (used during onboarding).
+ * Create a project and link one or more repos in one step (used during onboarding).
  */
-export async function createProjectWithRepo(
+export async function createProjectWithRepos(
   userId: string,
   project: CreateProjectParams,
-  repo: AddRepoParams
+  repos: AddRepoParams[]
 ): Promise<{ projectId: string | null; error: string | null }> {
   const { projectId, error: createError } = await createProject(userId, project);
   if (createError || !projectId) {
     return { projectId: null, error: createError };
   }
 
-  const { error: repoError } = await addRepoToProject(projectId, userId, repo);
-  if (repoError) {
-    return { projectId, error: repoError };
+  for (const repo of repos) {
+    const { error: repoError } = await addRepoToProject(projectId, userId, repo);
+    if (repoError) {
+      return { projectId, error: repoError };
+    }
   }
 
   return { projectId, error: null };

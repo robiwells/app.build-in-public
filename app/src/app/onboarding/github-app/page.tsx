@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { verifySetupToken, listInstallationRepos } from "@/lib/github-app";
+import { createSupabaseAdmin } from "@/lib/supabase";
 import { RepoPicker } from "@/components/RepoPicker";
 
 type Props = { searchParams: Promise<{ token?: string }> };
@@ -33,15 +34,29 @@ export default async function OnboardingGitHubAppPage({ searchParams }: Props) {
     redirect("/onboarding?error=no_repos");
   }
 
+  // Fetch user's existing projects so RepoPicker can offer "add to existing"
+  const supabase = createSupabaseAdmin();
+  const { data: projects } = await supabase
+    .from("projects")
+    .select("id, title")
+    .eq("user_id", user.userId)
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-        Choose a repo to track
+        Add a repo to a project
       </h1>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-        Commits will be tracked automatically—no webhook setup needed.
+        Commits will be tracked automatically — no webhook setup needed.
       </p>
-      <RepoPicker repos={repos} username={user.username} setupToken={token} />
+      <RepoPicker
+        repos={repos}
+        username={user.username}
+        setupToken={token}
+        existingProjects={(projects ?? []).map((p) => ({ id: p.id, title: p.title }))}
+      />
     </main>
   );
 }

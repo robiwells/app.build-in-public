@@ -70,10 +70,11 @@ async function getUserData(
       title,
       description,
       url,
-      project_repos(id, repo_full_name, repo_url)
+      project_repos!left(id, repo_full_name, repo_url, active)
     `
     )
     .eq("user_id", user.id)
+    .eq("project_repos.active", true)
     .eq("active", true)
     .order("created_at", { ascending: false });
 

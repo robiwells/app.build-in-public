@@ -25,11 +25,12 @@ export async function GET() {
       url,
       active,
       created_at,
-      project_repos(id, repo_full_name, repo_url, installation_id, active)
+      project_repos!left(id, repo_full_name, repo_url, installation_id, active)
     `
     )
     .eq("user_id", user.userId)
     .eq("active", true)
+    .eq("project_repos.active", true)
     .order("created_at", { ascending: false });
 
   if (error) {

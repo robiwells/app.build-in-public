@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createProjectWithRepo } from "@/lib/projects";
 import {
   verifyInstallState,
   createSetupToken,
@@ -55,25 +54,7 @@ export async function GET(request: Request) {
     );
   }
 
-  // Auto-create project when only one repo available
-  if (repos.length === 1) {
-    const repo = repos[0];
-    const repoName = repo.full_name.split("/").pop() ?? repo.full_name;
-    const { error } = await createProjectWithRepo(
-      user.userId,
-      { title: repoName },
-      { repoFullName: repo.full_name, repoUrl: repo.html_url, installationId }
-    );
-    if (error) {
-      return NextResponse.redirect(
-        new URL("/onboarding?error=invalid_setup", request.url).toString()
-      );
-    }
-    return NextResponse.redirect(
-      new URL(`/u/${user.username}`, request.url).toString()
-    );
-  }
-
+  // Always redirect to the repo picker so the user can choose which project to add to
   const setupToken = createSetupToken(installationId);
   const base = new URL("/onboarding/github-app", request.url);
   base.searchParams.set("token", setupToken);
