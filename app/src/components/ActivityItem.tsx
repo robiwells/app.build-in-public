@@ -85,49 +85,31 @@ export function ActivityItem({
         <div className="min-w-0 flex-1">
           <p className="text-zinc-900 dark:text-zinc-100">
             {showUser && user && (
-              <Link
-                href={`/u/${user.username}`}
-                className="font-medium hover:underline"
-              >
-                {user.username}
-              </Link>
-            )}
-            {showUser && user && " "}
-            <span>
-              {count} commit{count !== 1 ? "s" : ""} to{" "}
-              <a
-                href={repoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium hover:underline"
-              >
-                {repoName}
-              </a>
-            </span>
-          </p>
-          {projectTitle && (
-            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-              {projectTitle}
-            </p>
-          )}
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {formatDate(activity.date_utc)}
-            {timeRange && <> · {timeRange}</>}
-            {activity.last_commit_at && (
-              <> · {formatRelative(activity.last_commit_at)}</>
-            )}
-            {activity.github_link && (
               <>
+                <Link href={`/u/${user.username}`} className="font-medium hover:underline">
+                  {user.username}
+                </Link>
                 {" · "}
-                <a
-                  href={activity.github_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline"
-                >
-                  View on GitHub
+              </>
+            )}
+            <span className="font-medium">{projectTitle ?? repoName}</span>
+          </p>
+
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            {count} commit{count !== 1 ? "s" : ""}
+            {repo?.repo_full_name && (
+              <> to{" "}
+                <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                  {repo.repo_full_name}
                 </a>
               </>
+            )}
+            {" · "}
+            {formatDate(activity.date_utc)}
+            {timeRange && <> · {timeRange}</>}
+            {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
+            {activity.github_link && (
+              <> · <a href={activity.github_link} target="_blank" rel="noopener noreferrer" className="hover:underline">View on GitHub</a></>
             )}
           </p>
           {messages.length > 0 && (
