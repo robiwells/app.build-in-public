@@ -2,12 +2,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 import { ActivityItem } from "@/components/ActivityItem";
+import { ProjectManager } from "@/components/ProjectManager";
 
 export const revalidate = 30;
 
+type Repo = {
+  id: string;
+  repo_full_name: string;
+  repo_url: string;
+};
+
+type ProjectSummary = {
+  id: string;
+  title: string;
+  description: string | null;
+  url: string | null;
+  project_repos: Repo[];
+};
+
 type FeedItem = {
-  project?: { repo_full_name?: string; repo_url?: string } | null;
+  project?: { title?: string } | null;
+  repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     id?: string;
     date_utc?: string;
@@ -19,11 +36,12 @@ type FeedItem = {
   };
 };
 
-async function getUserFeed(
+async function getUserData(
   username: string,
   cursor?: string
 ): Promise<{
-  user: { username: string; avatar_url: string | null };
+  user: { id: string; username: string; avatar_url: string | null };
+  projects: ProjectSummary[];
   feed: FeedItem[];
   nextCursor: string | null;
 } | null> {
@@ -43,6 +61,23 @@ async function getUserFeed(
 
   if (!user) return null;
 
+  // Fetch user's active projects with repos
+  const { data: projects } = await supabase
+    .from("projects")
+    .select(
+      `
+      id,
+      title,
+      description,
+      url,
+      project_repos(id, repo_full_name, repo_url)
+    `
+    )
+    .eq("user_id", user.id)
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+
+  // Fetch activity feed
   let query = supabase
     .from("activities")
     .select(
@@ -55,7 +90,9 @@ async function getUserFeed(
       github_link,
       commit_messages,
       project_id,
-      projects!inner(repo_full_name, repo_url, active)
+      project_repo_id,
+      projects!inner(id, title, active),
+      project_repos(repo_full_name, repo_url)
     `
     )
     .eq("user_id", user.id)
@@ -69,7 +106,14 @@ async function getUserFeed(
 
   const { data: rows, error } = await query;
 
-  if (error || !rows) return { user, feed: [], nextCursor: null };
+  if (error || !rows) {
+    return {
+      user,
+      projects: (projects as ProjectSummary[]) ?? [],
+      feed: [],
+      nextCursor: null,
+    };
+  }
 
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
@@ -79,10 +123,12 @@ async function getUserFeed(
       : null;
 
   const feed = items.map((row: Record<string, unknown>) => {
-    const projects = row.projects as Record<string, unknown> | null;
+    const proj = row.projects as Record<string, unknown> | null;
+    const projectRepos = row.project_repos as Record<string, unknown> | null;
     return {
-      project: projects
-        ? { repo_full_name: projects.repo_full_name as string, repo_url: projects.repo_url as string }
+      project: proj ? { title: proj.title as string } : null,
+      repo: projectRepos
+        ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
         : null,
       activity: {
         id: row.id as string | undefined,
@@ -96,7 +142,12 @@ async function getUserFeed(
     };
   });
 
-  return { user, feed, nextCursor };
+  return {
+    user,
+    projects: (projects as ProjectSummary[]) ?? [],
+    feed,
+    nextCursor,
+  };
 }
 
 export default async function UserPage({
@@ -108,11 +159,15 @@ export default async function UserPage({
 }) {
   const { username } = await params;
   const { cursor } = await searchParams;
-  const data = await getUserFeed(username, cursor);
+  const data = await getUserData(username, cursor);
 
   if (!data) notFound();
 
-  const { user, feed, nextCursor } = data;
+  const { user, projects, feed, nextCursor } = data;
+
+  const session = await auth();
+  const sessionUser = session?.user as { userId?: string } | undefined;
+  const isOwner = sessionUser?.userId === user.id;
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
@@ -135,38 +190,100 @@ export default async function UserPage({
             {user?.username ?? username}
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            GitHub activity
+            {projects.length} project{projects.length !== 1 ? "s" : ""}
           </p>
         </div>
       </header>
 
-      {feed.length === 0 ? (
-        <p className="text-zinc-600 dark:text-zinc-400">No activity yet.</p>
-      ) : (
-        <>
-          <div className="space-y-0">
-            {feed.map((item) => (
-              <ActivityItem
-                key={item.activity.id ?? item.activity.date_utc}
-                user={null}
-                project={item.project}
-                activity={item.activity}
-                showUser={false}
-              />
+      {/* Projects section */}
+      {isOwner ? (
+        <section className="mb-8">
+          <ProjectManager />
+        </section>
+      ) : projects.length > 0 ? (
+        <section className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            Projects
+          </h2>
+          <div className="space-y-3">
+            {projects.map((p) => (
+              <div
+                key={p.id}
+                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+              >
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {p.title}
+                </h3>
+                {p.description && (
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    {p.description}
+                  </p>
+                )}
+                {p.url && (
+                  <a
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-block text-sm text-zinc-500 hover:underline dark:text-zinc-400"
+                  >
+                    {p.url}
+                  </a>
+                )}
+                {p.project_repos.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {p.project_repos.map((repo) => (
+                      <a
+                        key={repo.id}
+                        href={repo.repo_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block rounded-lg bg-zinc-50 px-3 py-1.5 text-sm text-zinc-700 hover:underline dark:bg-zinc-800/50 dark:text-zinc-300"
+                      >
+                        {repo.repo_full_name}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
-          {nextCursor && (
-            <div className="mt-6">
-              <Link
-                href={`/u/${username}?cursor=${encodeURIComponent(nextCursor)}`}
-                className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
-              >
-                Load more
-              </Link>
+        </section>
+      ) : null}
+
+      {/* Activity feed */}
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          Activity
+        </h2>
+        {feed.length === 0 ? (
+          <p className="text-zinc-600 dark:text-zinc-400">No activity yet.</p>
+        ) : (
+          <>
+            <div className="space-y-0">
+              {feed.map((item) => (
+                <ActivityItem
+                  key={item.activity.id ?? item.activity.date_utc}
+                  user={null}
+                  project={item.project}
+                  repo={item.repo}
+                  activity={item.activity}
+                  showUser={false}
+                />
+              ))}
             </div>
-          )}
-        </>
-      )}
+            {nextCursor && (
+              <div className="mt-6">
+                <Link
+                  href={`/u/${username}?cursor=${encodeURIComponent(nextCursor)}`}
+                  className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
+                >
+                  Load more
+                </Link>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </main>
   );
 }

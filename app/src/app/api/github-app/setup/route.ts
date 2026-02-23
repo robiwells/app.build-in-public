@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { upsertProject } from "@/lib/projects";
+import { createProjectWithRepo } from "@/lib/projects";
 import {
   verifyInstallState,
   createSetupToken,
@@ -55,13 +55,15 @@ export async function GET(request: Request) {
     );
   }
 
+  // Auto-create project when only one repo available
   if (repos.length === 1) {
     const repo = repos[0];
-    const { error } = await upsertProject(user.userId, {
-      repoFullName: repo.full_name,
-      repoUrl: repo.html_url,
-      installationId,
-    });
+    const repoName = repo.full_name.split("/").pop() ?? repo.full_name;
+    const { error } = await createProjectWithRepo(
+      user.userId,
+      { title: repoName },
+      { repoFullName: repo.full_name, repoUrl: repo.html_url, installationId }
+    );
     if (error) {
       return NextResponse.redirect(
         new URL("/onboarding?error=invalid_setup", request.url).toString()

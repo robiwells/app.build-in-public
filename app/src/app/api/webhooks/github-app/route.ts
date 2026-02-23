@@ -37,14 +37,12 @@ export async function POST(request: Request) {
   const event = request.headers.get("x-github-event");
   const deliveryId = request.headers.get("x-github-delivery");
 
-  // Idempotency: skip events already processed (GitHub guarantees at-least-once delivery)
   if (deliveryId) {
     const supabase = createSupabaseAdmin();
     const { error: insertError } = await supabase
       .from("webhook_events")
       .insert({ delivery_id: deliveryId, event_type: event ?? "unknown" });
     if (insertError) {
-      // Duplicate key means we've already processed this delivery — skip
       if (insertError.code === "23505") {
         return NextResponse.json({ ok: true, duplicate: true });
       }
@@ -58,8 +56,9 @@ export async function POST(request: Request) {
     const body = payload as { action?: string; installation?: { id?: number } };
     if (body.action === "deleted" && typeof body.installation?.id === "number") {
       const supabase = createSupabaseAdmin();
+      // Deactivate repos tied to this installation
       const { error } = await supabase
-        .from("projects")
+        .from("project_repos")
         .update({ active: false, updated_at: new Date().toISOString() })
         .eq("installation_id", body.installation.id);
       if (error) {

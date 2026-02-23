@@ -3,7 +3,8 @@ import Link from "next/link";
 
 type ActivityItemProps = {
   user?: { username?: string; avatar_url?: string | null } | null;
-  project?: { repo_full_name?: string; repo_url?: string } | null;
+  project?: { title?: string } | null;
+  repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     date_utc?: string;
     commit_count?: number;
@@ -48,12 +49,14 @@ function formatTimeRange(
 export function ActivityItem({
   user,
   project,
+  repo,
   activity,
   showUser = true,
 }: ActivityItemProps) {
   const count = activity.commit_count ?? 0;
-  const repoName = project?.repo_full_name ?? "repo";
-  const repoUrl = project?.repo_url ?? "#";
+  const repoName = repo?.repo_full_name ?? "repo";
+  const repoUrl = repo?.repo_url ?? "#";
+  const projectTitle = project?.title;
   const timeRange = formatTimeRange(activity.first_commit_at, activity.last_commit_at);
   const messages = activity.commit_messages ?? [];
 
@@ -102,6 +105,11 @@ export function ActivityItem({
               </a>
             </span>
           </p>
+          {projectTitle && (
+            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+              {projectTitle}
+            </p>
+          )}
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             {formatDate(activity.date_utc)}
             {timeRange && <> · {timeRange}</>}

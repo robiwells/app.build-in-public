@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { createSupabaseAdmin } from "@/lib/supabase";
 import { createInstallState } from "@/lib/github-app";
+import { ProjectManager } from "@/components/ProjectManager";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -11,14 +11,6 @@ export default async function SettingsPage() {
 
   const user = session.user as { userId?: string; username?: string };
   if (!user.userId) redirect("/api/auth/signin?callbackUrl=/settings");
-
-  const supabase = createSupabaseAdmin();
-  const { data: project } = await supabase
-    .from("projects")
-    .select("repo_full_name, repo_url")
-    .eq("user_id", user.userId)
-    .eq("active", true)
-    .maybeSingle();
 
   const appSlug = process.env.GITHUB_APP_SLUG;
   const installAppUrl =
@@ -31,23 +23,16 @@ export default async function SettingsPage() {
       <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
         Settings
       </h1>
-      <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-        Current tracked repo:{" "}
-        {project ? (
-          <a
-            href={project.repo_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium hover:underline"
-          >
-            {project.repo_full_name}
-          </a>
-        ) : (
-          "None"
-        )}
-      </p>
+
+      <section className="mb-8">
+        <ProjectManager />
+      </section>
+
       {installAppUrl && (
-        <div>
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            GitHub App
+          </h2>
           <a
             href={installAppUrl}
             className="inline-block rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
@@ -55,9 +40,9 @@ export default async function SettingsPage() {
             Connect with GitHub App
           </a>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Install or reinstall the app to track a different repo.
+            Install or reconfigure the GitHub App to track repos across your projects.
           </p>
-        </div>
+        </section>
       )}
     </main>
   );

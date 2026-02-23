@@ -11,10 +11,10 @@ export function RepoPicker({
 }: {
   repos: Repo[];
   username: string;
-  /** When set, submit to GitHub App project API with this token (includes installation_id). */
   setupToken?: string;
 }) {
   const [selected, setSelected] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,9 +27,12 @@ export function RepoPicker({
     setError("");
     try {
       const url = setupToken ? "/api/github-app/project" : "/api/projects";
+      const repoName = repo.full_name.split("/").pop() ?? repo.full_name;
+      const title = projectTitle.trim() || repoName;
+
       const body = setupToken
-        ? { token: setupToken, repo_full_name: repo.full_name, repo_url: repo.html_url }
-        : { repo_full_name: repo.full_name, repo_url: repo.html_url };
+        ? { token: setupToken, repo_full_name: repo.full_name, repo_url: repo.html_url, title }
+        : { repo_full_name: repo.full_name, repo_url: repo.html_url, title };
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -37,7 +40,7 @@ export function RepoPicker({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || res.statusText);
+        setError((data as { error?: string }).error || res.statusText);
         return;
       }
       if (setupToken) {
@@ -55,22 +58,51 @@ export function RepoPicker({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-        Choose a repo to track
-      </label>
-      <select
-        value={selected}
-        onChange={(e) => setSelected(e.target.value)}
-        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-        required
-      >
-        <option value="">Select a repository</option>
-        {repos.map((r) => (
-          <option key={r.full_name} value={r.full_name}>
-            {r.full_name}
-          </option>
-        ))}
-      </select>
+      <div>
+        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Choose a repo to track
+        </label>
+        <select
+          value={selected}
+          onChange={(e) => {
+            setSelected(e.target.value);
+            if (!projectTitle.trim()) {
+              const repo = repos.find((r) => r.full_name === e.target.value);
+              if (repo) {
+                setProjectTitle(repo.full_name.split("/").pop() ?? repo.full_name);
+              }
+            }
+          }}
+          className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+          required
+        >
+          <option value="">Select a repository</option>
+          {repos.map((r) => (
+            <option key={r.full_name} value={r.full_name}>
+              {r.full_name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selected && (
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Project name
+          </label>
+          <input
+            type="text"
+            value={projectTitle}
+            onChange={(e) => setProjectTitle(e.target.value)}
+            placeholder="e.g. My SaaS App"
+            className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+          />
+          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+            Defaults to the repo name if left blank. You can change this later.
+          </p>
+        </div>
+      )}
+
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}

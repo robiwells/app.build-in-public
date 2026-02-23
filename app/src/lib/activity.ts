@@ -50,20 +50,26 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
   if (!repoFullName) return;
 
   const supabase = createSupabaseAdmin();
-  // Case-insensitive match (GitHub may send different casing than we stored)
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("id, user_id")
+
+  // Look up repo in project_repos (V2 schema)
+  const pattern = repoFullName
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+
+  const { data: projectRepo, error: repoError } = await supabase
+    .from("project_repos")
+    .select("id, project_id, user_id")
     .eq("active", true)
-    .ilike("repo_full_name", repoFullName.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_"))
+    .ilike("repo_full_name", pattern)
     .maybeSingle();
 
-  if (projectError) {
-    console.error("[activity] project lookup failed", { error: projectError, repo: repoFullName, deliveryId });
+  if (repoError) {
+    console.error("[activity] project_repo lookup failed", { error: repoError, repo: repoFullName, deliveryId });
     return;
   }
 
-  if (!project) return;
+  if (!projectRepo) return;
 
   const commits = body.commits ?? [];
   const commitEntries = parseCommits(commits);
@@ -81,7 +87,8 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
     const { data: existing, error: readError } = await supabase
       .from("activities")
       .select("commit_count, first_commit_at, last_commit_at, commit_messages")
-      .eq("user_id", project.user_id)
+      .eq("user_id", projectRepo.user_id)
+      .eq("project_id", projectRepo.project_id)
       .eq("date_utc", dateUtc)
       .maybeSingle();
 
@@ -100,8 +107,9 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
 
     const { error: upsertError } = await supabase.from("activities").upsert(
       {
-        user_id: project.user_id,
-        project_id: project.id,
+        user_id: projectRepo.user_id,
+        project_id: projectRepo.project_id,
+        project_repo_id: projectRepo.id,
         date_utc: dateUtc,
         commit_count: commitCount,
         first_commit_at: firstCommitAt.toISOString(),
@@ -110,7 +118,7 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
         commit_messages: commitMessages,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id,date_utc" }
+      { onConflict: "user_id,project_id,date_utc" }
     );
 
     if (upsertError) {

@@ -12,7 +12,6 @@ export async function GET(
 
   const supabase = createSupabaseAdmin();
 
-  // Case-insensitive username lookup (GitHub usernames are lowercase but DB may differ)
   const pattern = username.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
   const { data: user } = await supabase
     .from("users")
@@ -36,7 +35,9 @@ export async function GET(
       github_link,
       commit_messages,
       project_id,
-      projects!inner(repo_full_name, repo_url, active)
+      project_repo_id,
+      projects!inner(id, title, active),
+      project_repos(repo_full_name, repo_url)
     `
     )
     .eq("user_id", user.id)
@@ -63,9 +64,13 @@ export async function GET(
 
   const feed = items.map((row: Record<string, unknown>) => {
     const projects = row.projects as Record<string, unknown> | null;
+    const projectRepos = row.project_repos as Record<string, unknown> | null;
     return {
       project: projects
-        ? { repo_full_name: projects.repo_full_name, repo_url: projects.repo_url }
+        ? { id: projects.id, title: projects.title }
+        : null,
+      repo: projectRepos
+        ? { repo_full_name: projectRepos.repo_full_name, repo_url: projectRepos.repo_url }
         : null,
       activity: {
         id: row.id,

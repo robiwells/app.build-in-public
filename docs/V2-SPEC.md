@@ -1,8 +1,8 @@
-# V2 Spec: Full “5 Minutes a Day” Experience (Beyond V1)
+# V2 Spec: Project Spaces
 
-This document defines the **next-stage product** built on top of the v1 GitHub-only auto feed described in `V1-SPEC.md`.
+This document defines **V2**, which builds directly on top of V1 (`V1-SPEC.md`).
 
-V2 focuses on turning the raw activity log into a **habit-forming, social “build in public” experience**, by adding manual check-ins, social interactions, and streak mechanics while preserving the simple, daily-proof-of-work core.
+V2 introduces **project spaces**: a lightweight organisational layer that lets users group tracked repos under named projects. In V1, users had exactly one tracked repo. V2 lifts that restriction and gives users a first-class "project" concept they own and curate.
 
 ---
 
@@ -10,314 +10,271 @@ V2 focuses on turning the raw activity log into a **habit-forming, social “bui
 
 - **V1 (current)**:
   - Multi-user GitHub OAuth.
-  - Users track a repo and generate **automatic, per-day activity posts** based on commits.
+  - One tracked repo per user (`projects` table with `unique(user_id)`).
+  - Auto-generated, per-day activity posts based on commits.
   - Public, read-only global feed (`/`) and per-user feeds (`/u/:username`).
-  - No manual posts, comments, likes, streak logic, or gamification.
 
 - **V2 (this spec)** adds:
-  - Manual text/image check-ins.
-  - A richer **Social Engine**: hearts, comments, categories, filters.
-  - **Streak & Grace Logic**: 48-hour rule, streak states, and freeze tokens.
-  - More complete screens: upgraded landing page, profile with streak map, post detail threads, and a proper settings dashboard.
+  - A user can create **multiple projects**.
+  - Each project has a **title** (required), **description**, **URL**, and **zero or more tracked repos**.
+  - Users manage projects from their **profile page** (`/u/:username`).
+  - Activity posts are associated with a project, and the feeds display the project context.
 
-All new features should **reuse the V1 data model where possible**, extending it rather than rewriting.
-
----
-
-## 2. Core Feature Additions
-
-### 2.1 The Check-in System (Manual + Auto)
-
-#### 2.1.1 Manual Posts
-
-- **New capability**: Users can create **manual check-ins** in addition to auto GitHub posts.
-- Each manual post includes:
-  - `user_id`.
-  - Optional `project_id` / tracked project.
-  - **Content**:
-    - Required text field (short to medium-length).
-    - Optional image upload (one image v2, multiple images can be future).
-  - `created_at` timestamp (UTC).
-- Manual posts:
-  - Appear in the **global firehose** and **user profile feed**, interleaved with auto posts by time.
-  - Count towards streak logic the same way GitHub-backed activity does (see 2.3).
-
-#### 2.1.2 Updated Activity Model
-
-- Introduce (or generalize to) a unified **Post** / **Update** entity:
-  - `id`
-  - `user_id`
-  - `project_id` (optional)
-  - `type` (e.g., `auto_github`, `manual`)
-  - `content_text` (nullable; required for `manual`)
-  - `content_image_url` (nullable)
-  - `activity_date_utc` (logical activity date for streaks)
-  - `created_at`, `updated_at`
-  - `metadata` JSON (e.g., commit_count, repo_full_name, github_links)
-- V1 activities (auto-only) map into this model as `type = auto_github`.
-- V2 manual posts simply use `type = manual` and fill out the content fields.
-
-#### 2.1.3 The 5-Minute Philosophy
-
-- Still **no hard timer**: any of the following count as “showing up” for a given UTC day:
-  - At least one auto GitHub post for the day.
-  - At least one manual post for the day.
-- The UI language emphasizes:
-  - “Log even a tiny step.”
-  - “5 minutes counts.”
+All new features **extend the V1 data model** rather than rewriting it.
 
 ---
 
-### 2.2 Social Engine
+## 2. Core Concepts
 
-V2 brings the “social” layer on top of posts/updates.
+### 2.1 What Is a Project?
 
-#### 2.2.1 Global Firehose Enhancements
+A **project** represents a distinct effort or product a user is building in public. Examples:
 
-- Global feed (`/`) now:
-  - Includes both `auto_github` and `manual` posts.
-  - Displays a **post card** with:
-    - User avatar + username.
-    - Project/category chips.
-    - Text + optional image.
-    - Social actions: heart button, comment count.
-  - Uses **real-time-ish updates** (polling or websockets) where feasible, but real-time is not strictly required for initial V2.
+- "My SaaS app" — with two repos: `frontend` and `backend`.
+- "Learning Rust" — with one repo of exercises.
+- "Writing a book" — with no repos yet (placeholder for future manual tracking).
 
-#### 2.2.2 Interactions: Hearts
+### 2.2 Project Properties
 
-- Users can “Heart” any post when authenticated.
-- Model:
-  - `hearts`: `id`, `user_id`, `post_id`, `created_at`.
-  - Enforce uniqueness on (`user_id`, `post_id`) to prevent duplicates.
-- UI:
-  - Heart icon on each post.
-  - Shows total heart count and whether the current user has hearted it.
-- For unauthenticated users:
-  - Clicking heart shows a **login prompt** instead of performing the action.
+| Field         | Required | Description                                                        |
+|---------------|----------|--------------------------------------------------------------------|
+| `title`       | Yes      | Short name for the project (e.g. "Build in Public App").           |
+| `description` | No       | One or two sentences about what the project is.                    |
+| `url`         | No       | External link (e.g. a live site, landing page, or docs URL).       |
+| `repos`       | No       | Zero or more connected GitHub repos tracked under this project.    |
 
-#### 2.2.3 Interactions: Comments
+### 2.3 Repos Within a Project
 
-- Users can add **comments** to posts when authenticated.
-- Model:
-  - `comments`: `id`, `post_id`, `user_id`, `body`, `created_at`, `updated_at`.
-- Minimal features:
-  - Linear, chronological comment thread.
-  - No replies, threads, or mentions in v2.
-  - Basic moderation controls (e.g., user can delete their own comments) can be added if time permits.
-
-#### 2.2.4 Categorization & Filtering
-
-- Each **project** (or primary tracked effort) has a **category**, e.g.:
-  - `#Coding`, `#Writing`, `#Art`, `#Fitness`, `#Music`, `#Other`.
-- Posts inherit the category from their associated project.
-- UI:
-  - Category chips rendered on post cards.
-  - On the global feed:
-    - A **Category Filter Bar** at the top with toggle chips.
-    - Selecting a category filters the feed to posts matching that category.
-
-#### 2.2.5 Public Profiles
-
-- Public profile (`/u/:username`) expands to include:
-  - Profile header:
-    - Avatar.
-    - Display name / username.
-    - Short bio.
-    - “Project Mission” / one-sentence description.
-  - Streak dashboard (see 2.3).
-  - A chronological list of this user’s posts (both manual and auto), with the same card UI.
+- Each connected repo belongs to **exactly one project** (a repo cannot be shared across projects).
+- A project can have **zero repos** (useful as a placeholder or for projects that don't have a repo yet).
+- Repos are tracked via GitHub App installation, same as V1. The `installation_id`, `repo_full_name`, and `repo_url` fields move from the current `projects` table into a dedicated `project_repos` table.
 
 ---
 
-### 2.3 Streak & Grace Logic
+## 3. User Flows
 
-V2 introduces **streaks**, a **48-hour grace rule**, and **freeze tokens**.
+### 3.1 Existing User (Migration from V1)
 
-#### 2.3.1 Definitions
+- On first load after the V2 migration:
+  - The system silently migrates the user's existing tracked repo into a **default project** titled with the repo name (e.g. `"app.build-in-public"`).
+  - No user action required. Existing activity posts retain their `project_id` reference.
+  - The user can rename or reorganise later.
 
-- **Active day**:
-  - A UTC day on which the user has **at least one post** (manual or auto) associated with their current project.
-- **Missed day**:
-  - A UTC day with **no posts**, unprotected by a freeze token.
+### 3.2 Creating a New Project
 
-#### 2.3.2 The 48-Hour Rule
+- From the profile page (`/u/:username`), an authenticated user clicks **"New Project"**.
+- A form appears with:
+  - **Title** (required).
+  - **Description** (optional).
+  - **URL** (optional).
+- On save, the project is created with zero repos. The user can add repos afterward.
 
-- A user’s streak **does not reset** on the first missed day.
-- The streak only resets if the user misses **two consecutive UTC days** with:
-  - No posts, and
-  - No active freeze tokens covering those days.
-- Implementation approach:
-  - Maintain `streak_count`, `last_active_date_utc`, and a history of active days.
-  - A scheduled job (or logic on post creation) updates streaks based on recent activity.
+### 3.3 Adding Repos to a Project
 
-#### 2.3.3 Streak Status States
+- From a project's detail/edit view, the user clicks **"Add Repo"**.
+- A searchable list of repos from their GitHub App installation is displayed (same mechanism as V1 onboarding).
+- The user selects one or more repos. Each is linked to the project.
+- Repos already assigned to another project are shown as disabled with a label indicating which project they belong to.
 
-- Introduce three visual states on the profile:
-  - **Safe**:
-    - The user has posted today (or within the last UTC day) and is not at risk of an imminent reset.
-  - **At Risk**:
-    - The user is approaching a potential reset under the 48-hour rule (e.g., no activity today but activity yesterday).
-  - **Frozen**:
-    - The user has activated a freeze token that covers the current UTC day.
-- Status is calculated from:
-  - Current UTC date.
-  - The user’s streak data and latest activity.
-  - Any active freeze tokens.
+### 3.4 Editing a Project
 
-#### 2.3.4 Freeze Tokens
+- The user can update a project's title, description, and URL at any time from the profile page or a project settings view.
+- The user can remove a repo from a project (the repo becomes untracked; future commits are not recorded until it is re-assigned).
 
-- Each user is granted a **limited number of freeze tokens**.
-- A freeze token, when activated:
-  - Marks a specific UTC day (or range of days) as “protected”.
-  - Missed days covered by a freeze **do not break the streak**.
-- Model:
-  - `freeze_tokens`: `id`, `user_id`, `status` (`available`, `used`), `used_for_date_utc` (or date range), `created_at`, `used_at`.
-- UI:
-  - Display remaining freezes in the **Settings / Dashboard**.
-  - Allow user to activate a freeze for today or an upcoming/planned date.
+### 3.5 Deleting a Project
 
----
+- The user can delete a project.
+- Deleting a project:
+  - Unlinks all associated repos (they become untracked).
+  - **Does not delete** historical activity posts — they remain visible in the feed with the project title preserved for display purposes.
+- If the user's only project is deleted, their profile shows an empty state prompting them to create a new one.
 
-## 3. Screen-Level Changes (V2)
+### 3.6 Onboarding (New Users)
 
-These map directly to the “Screens” section in `DESIGN-DOC.md`.
+- The V1 onboarding flow is updated:
+  - After GitHub App installation and repo selection, the system creates a **default project** using the selected repo's name as the title.
+  - The user can customise the project title, description, and URL on the next step (or skip and edit later).
+- The overall flow remains: Sign in → Install GitHub App → Select repo(s) → Land on profile.
 
-### 3.1 Landing & Global Firehose (`/`)
+### 3.7 Anonymous Visitor
 
-- **Guest View**:
-  - Header:
-    - Product name (“5 Minutes a Day”).
-    - **“Login”** button (GitHub).
-  - Hero section:
-    - Short, punchy value prop about building in public and showing up daily.
-    - Possibly a small visual (screenshot or streak map).
-  - Feed:
-    - Scrollable list of all posts (manual + auto).
-    - Heart/comment buttons are visible but:
-      - For guests, clicking them triggers the login gateway instead of taking action.
-  - Category Filter Bar.
-
-- **Authenticated View**:
-  - Adds a **composer** box at top:
-    - Prompt: “What did you do for 5 minutes today?”
-    - Text input for manual post.
-    - Image upload control (single image v2).
-  - Shows daily status widget:
-    - Current streak count.
-    - Time remaining to the next UTC day (see 3.4).
-  - Same global feed, now with interactive hearts/comments.
-
-### 3.2 Login / Gateway Screen
-
-- Dedicated login route or modal:
-  - Primary button:
-    - “Continue with GitHub”.
-  - Social proof text:
-    - e.g., “Join 1,200+ builders staying consistent today.”
-
-### 3.3 Onboarding / Project Setup
-
-- Shown only to:
-  - New users.
-  - Users starting a new project.
-- Content:
-  - **Project Name**: “What are you working on?”.
-  - **Category Picker**:
-    - Visual grid of icons (Coding, Art, Writing, Fitness, Music, Other).
-  - **GitHub Hook**:
-    - If logged in via GitHub:
-      - Searchable dropdown listing their public repos.
-      - Option to toggle auto-tracking on/off.
-  - The selected category and repo connect to the project record; posts inherit the category.
-
-### 3.4 User Profile Page (Public)
-
-- Enhancements beyond V1:
-  - Profile header:
-    - Avatar, display name, username.
-    - Short bio and “Project Mission” field.
-  - Streak Dashboard:
-    - **Flame icon** with current streak count (e.g., “15 days”).
-    - **Status**: Safe / At Risk / Frozen.
-    - **Grid**: 365-day consistency map (GitHub-style), derived from daily active status.
-  - Personal Feed:
-    - All of the user’s posts (manual + auto) in reverse chronological order.
-
-### 3.5 Post Detail View (Thread)
-
-- Route like `/p/:postId`.
-- Content:
-  - Full text and high-res image (if present).
-  - Social stats:
-    - Heart count and list of users who hearted (or top few + “and X more”).
-  - Comments:
-    - Linear list of comments with author avatar, text, timestamp.
-    - Input box to add a new comment (for logged-in users).
-
-### 3.6 User Settings & Dashboard (Private)
-
-- Available to authenticated users only.
-- Sections:
-  - **Account Management**:
-    - Link/unlink GitHub account.
-  - **Active Project Settings**:
-    - Change project name.
-    - Change category.
-    - Change which GitHub repo is tracked.
-  - **Freeze Vault**:
-    - See number of remaining freeze tokens.
-    - View history of used tokens.
-    - Activate a freeze for a given date.
-  - **Timezone Reference**:
-    - Show “App runs on UTC” message.
-    - Display current UTC time and the user’s local time side-by-side.
+- No changes to the anonymous experience beyond display:
+  - Feed items now show the **project title** alongside the repo name.
+  - User profile pages display a list of the user's projects with their repos underneath.
 
 ---
 
-## 4. Architecture & Data Notes
+## 4. Data Model Changes
 
-- The **overall architecture** remains the same as described in `DESIGN-DOC.md`:
-  - Next.js frontend.
-  - Node.js/TypeScript backend.
-  - PostgreSQL database.
-  - GitHub OAuth.
-  - Firebase or similar for image storage.
+### 4.1 Updated `projects` Table
 
-### Note on Future Google Auth (V3)
+The `projects` table becomes the **project space** entity. Repo-specific fields are extracted to `project_repos`.
 
-- Support for **Google sign-in** is explicitly deferred to **V3+**.
-- When introduced, onboarding will need to:
-  - Allow users who sign in with Google to **add GitHub as a secondary connection**.
-  - Handle repo authorization flows for GitHub separately from identity.
-  - Cleanly merge accounts for users who first sign in with one provider and later link the other.
-- V2 mostly adds:
-  - New tables (`posts` if not already unified, `hearts`, `comments`, `freeze_tokens`, `projects`/`categories`).
-  - New relations and queries for social features and streak computation.
-  - Additional API endpoints for:
-    - Creating manual posts.
-    - Liking/unliking.
-    - Creating/deleting comments.
-    - Managing project settings and freeze tokens.
+```
+projects
+  id              uuid        PK, default gen_random_uuid()
+  user_id         uuid        FK → users(id) ON DELETE CASCADE, NOT NULL
+  title           text        NOT NULL
+  description     text        nullable
+  url             text        nullable
+  active          boolean     NOT NULL DEFAULT true
+  created_at      timestamptz NOT NULL DEFAULT now()
+  updated_at      timestamptz NOT NULL DEFAULT now()
+```
+
+Key changes from V1:
+- **Remove** the `unique(user_id)` constraint (users can now have many projects).
+- **Remove** `repo_full_name`, `repo_url`, `installation_id` (moved to `project_repos`).
+- **Add** `title`, `description`, `url`.
+
+### 4.2 New `project_repos` Table
+
+Each row represents a single tracked repo linked to a project.
+
+```
+project_repos
+  id                uuid        PK, default gen_random_uuid()
+  project_id        uuid        FK → projects(id) ON DELETE CASCADE, NOT NULL
+  user_id           uuid        FK → users(id) ON DELETE CASCADE, NOT NULL
+  installation_id   bigint      NOT NULL
+  repo_full_name    text        NOT NULL
+  repo_url          text        NOT NULL
+  active            boolean     NOT NULL DEFAULT true
+  created_at        timestamptz NOT NULL DEFAULT now()
+  updated_at        timestamptz NOT NULL DEFAULT now()
+
+  UNIQUE(user_id, repo_full_name)
+```
+
+- `user_id` is denormalised here for efficient querying (find all repos for a user without joining through projects).
+- The unique constraint on `(user_id, repo_full_name)` ensures a repo is only tracked once per user.
+
+### 4.3 Updated `activities` Table
+
+- The existing `project_id` FK on `activities` continues to reference `projects(id)`.
+- **New**: change the unique constraint from `unique(user_id, date_utc)` to `unique(user_id, project_id, date_utc)` — a user can now have activity on the same day across multiple projects.
+- **New**: add `project_repo_id` (FK → `project_repos(id)`, nullable) to link an activity post to the specific repo that generated it.
+
+### 4.4 Updated Webhook Processing
+
+- When a push event arrives, the webhook handler:
+  1. Looks up the repo in `project_repos` by `installation_id` + `repo_full_name`.
+  2. Resolves the parent `project_id`.
+  3. Upserts the activity record using `(user_id, project_id, date_utc)` as the conflict key (and sets `project_repo_id`).
+
+### 4.5 Migration Strategy
+
+A single migration handles the transition:
+
+1. **Add** `title`, `description`, `url` columns to `projects`.
+2. **Populate** `title` on existing rows using the `repo_full_name` (e.g. extract the repo name portion).
+3. **Create** the `project_repos` table.
+4. **Copy** each existing project's `repo_full_name`, `repo_url`, `installation_id`, `user_id` into a corresponding `project_repos` row.
+5. **Drop** the `unique(user_id)` constraint on `projects`.
+6. **Drop** `repo_full_name`, `repo_url`, `installation_id` columns from `projects`.
+7. **Make** `title` NOT NULL after backfill.
+8. **Alter** the unique constraint on `activities` from `(user_id, date_utc)` to `(user_id, project_id, date_utc)`.
+9. **Add** `project_repo_id` column to `activities` (nullable FK to `project_repos`).
+
+All existing data is preserved. Feed queries continue to work because `activities.project_id` still points to a valid `projects` row.
 
 ---
 
-## 5. Success Criteria for V2
+## 5. API Changes
 
-We can consider V2 successful when:
+### 5.1 New Endpoints
+
+| Method   | Route                          | Description                                      |
+|----------|--------------------------------|--------------------------------------------------|
+| `GET`    | `/api/projects`                | List the authenticated user's projects.           |
+| `POST`   | `/api/projects`                | Create a new project.                            |
+| `PATCH`  | `/api/projects/:id`            | Update a project's title, description, or URL.   |
+| `DELETE` | `/api/projects/:id`            | Delete a project (unlinks repos, keeps history). |
+| `GET`    | `/api/projects/:id/repos`      | List repos linked to a project.                  |
+| `POST`   | `/api/projects/:id/repos`      | Add a repo to a project.                         |
+| `DELETE` | `/api/projects/:id/repos/:repoId` | Remove a repo from a project.                |
+
+### 5.2 Updated Endpoints
+
+| Route                            | Change                                                            |
+|----------------------------------|-------------------------------------------------------------------|
+| `GET /api/feed`                  | Include `project.title` in response alongside repo name.          |
+| `GET /api/feed/u/:username`      | Include `project.title` in response; optionally filter by project.|
+| `POST /api/github-app/project`   | Create a project + link repos (updated to use new schema).        |
+| `PATCH /api/settings/project`    | Update project fields (updated to use new schema).                |
+| `GET /api/repos`                 | Indicate which project (if any) each repo is assigned to.         |
+
+### 5.3 Webhook Handler
+
+- `POST /api/webhooks/github-app` — updated to resolve repos via `project_repos` instead of `projects`.
+
+---
+
+## 6. UI Changes
+
+### 6.1 Profile Page (`/u/:username`)
+
+- **Projects section**: a list of the user's projects, each showing:
+  - Title.
+  - Description (if set).
+  - URL link (if set).
+  - List of tracked repos under the project.
+  - Latest activity summary.
+- **Authenticated user** sees:
+  - "New Project" button.
+  - Edit/delete controls on each project.
+  - "Add Repo" action within each project.
+
+### 6.2 Feed Cards (Global & User)
+
+- Activity cards now display:
+  - **Project title** as the primary label (e.g. "Build in Public App").
+  - Repo name as secondary context (e.g. "app.build-in-public").
+  - Everything else (avatar, commit count, timestamp, link) remains the same.
+
+### 6.3 Onboarding
+
+- After GitHub App installation and repo selection:
+  - A new step (or inline form) lets the user name their first project.
+  - Defaults to the repo name. User can change it or skip.
+  - Description and URL are optional fields shown here.
+
+### 6.4 Settings
+
+- The existing settings page is updated to manage projects rather than a single tracked repo:
+  - List of projects with edit/delete.
+  - Within each project, manage linked repos.
+
+---
+
+## 7. Explicit Non-Goals for V2
+
+The following remain **out of scope**:
+
+- **Manual posts**: no text composer or image uploads.
+- **Social interactions**: no hearts, comments, or social graph.
+- **Streak logic**: no streak states, freeze tokens, or grace rules.
+- **Categories**: no project categorisation or feed filtering.
+- **Multi-provider auth**: GitHub OAuth only.
+- **Repo sharing across projects**: each repo belongs to exactly one project.
+
+---
+
+## 8. Success Criteria for V2
+
+V2 is successful when:
 
 - Users can:
-  - Log in, set up a project with a category and GitHub hook.
-  - Post manual updates with text (and optionally images).
-  - See their activity (auto + manual) contribute to a visible streak.
-  - Understand their current streak status (Safe / At Risk / Frozen).
-  - Heart and comment on others’ posts.
-  - Browse categories and discover similar builders via the firehose.
-- Observers can:
-  - Visit any user’s profile and understand their journey at a glance via:
-    - Streak count.
-    - Consistency map.
-    - Project mission.
-- The system:
-  - Applies the 48-hour rule and freeze tokens correctly.
-  - Maintains data integrity between posts, hearts, comments, and streak calculations.
+  - Create multiple projects from their profile page.
+  - Give each project a title, description, and URL.
+  - Assign one or more repos to each project.
+  - See activity posts grouped by project in feeds.
+  - Edit or delete projects without losing historical activity data.
 
+- New users:
+  - Go through onboarding and have a default project created automatically.
+
+- The system:
+  - Correctly routes webhook events to the right project and repo.
+  - Handles the V1 → V2 data migration seamlessly (no manual user action required).
+  - Maintains backward compatibility — existing feeds, user profiles, and activity data continue to work.

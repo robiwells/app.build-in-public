@@ -34,30 +34,30 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
-          repo_full_name: string;
-          repo_url: string;
+          title: string;
+          description: string | null;
+          url: string | null;
           active: boolean;
-          installation_id: number;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          repo_full_name: string;
-          repo_url: string;
+          title: string;
+          description?: string | null;
+          url?: string | null;
           active?: boolean;
-          installation_id: number;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
-          repo_full_name?: string;
-          repo_url?: string;
+          title?: string;
+          description?: string | null;
+          url?: string | null;
           active?: boolean;
-          installation_id?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -65,7 +65,58 @@ export interface Database {
           {
             foreignKeyName: "projects_user_id_fkey";
             columns: ["user_id"];
-            isOneToOne: true;
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      project_repos: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          installation_id: number;
+          repo_full_name: string;
+          repo_url: string;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_id: string;
+          installation_id: number;
+          repo_full_name: string;
+          repo_url: string;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_id?: string;
+          installation_id?: number;
+          repo_full_name?: string;
+          repo_url?: string;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_repos_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_repos_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
             referencedRelation: "users";
             referencedColumns: ["id"];
           }
@@ -76,6 +127,7 @@ export interface Database {
           id: string;
           user_id: string;
           project_id: string;
+          project_repo_id: string | null;
           date_utc: string;
           commit_count: number;
           first_commit_at: string | null;
@@ -89,6 +141,7 @@ export interface Database {
           id?: string;
           user_id: string;
           project_id: string;
+          project_repo_id?: string | null;
           date_utc: string;
           commit_count?: number;
           first_commit_at?: string | null;
@@ -102,6 +155,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           project_id?: string;
+          project_repo_id?: string | null;
           date_utc?: string;
           commit_count?: number;
           first_commit_at?: string | null;
@@ -124,6 +178,13 @@ export interface Database {
             columns: ["project_id"];
             isOneToOne: false;
             referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "activities_project_repo_id_fkey";
+            columns: ["project_repo_id"];
+            isOneToOne: false;
+            referencedRelation: "project_repos";
             referencedColumns: ["id"];
           }
         ];

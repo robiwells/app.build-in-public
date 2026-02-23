@@ -22,15 +22,16 @@ export default async function OnboardingPage({ searchParams }: Props) {
     redirect("/api/auth/signin?callbackUrl=/onboarding");
   }
 
+  // Check if user already has any active project with repos
   const supabase = createSupabaseAdmin();
-  const { data: project } = await supabase
-    .from("projects")
+  const { data: repos } = await supabase
+    .from("project_repos")
     .select("id")
     .eq("user_id", user.userId)
     .eq("active", true)
-    .maybeSingle();
+    .limit(1);
 
-  if (project) {
+  if (repos && repos.length > 0) {
     redirect(`/u/${user.username}`);
   }
 

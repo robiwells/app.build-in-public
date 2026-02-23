@@ -6,7 +6,8 @@ export const revalidate = 30;
 
 type FeedItem = {
   user?: { username?: string; avatar_url?: string | null } | null;
-  project?: { repo_full_name?: string; repo_url?: string } | null;
+  project?: { title?: string } | null;
+  repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     id?: string;
     date_utc?: string;
@@ -35,8 +36,10 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
       commit_messages,
       user_id,
       project_id,
+      project_repo_id,
       users!inner(id, username, avatar_url),
-      projects!inner(repo_full_name, repo_url, active)
+      projects!inner(id, title, active),
+      project_repos(repo_full_name, repo_url)
     `
     )
     .eq("projects.active", true)
@@ -61,12 +64,16 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
   const feed = items.map((row: Record<string, unknown>) => {
     const users = row.users as Record<string, unknown> | null;
     const projects = row.projects as Record<string, unknown> | null;
+    const projectRepos = row.project_repos as Record<string, unknown> | null;
     return {
       user: users
         ? { username: users.username as string, avatar_url: users.avatar_url as string | null }
         : null,
       project: projects
-        ? { repo_full_name: projects.repo_full_name as string, repo_url: projects.repo_url as string }
+        ? { title: projects.title as string }
+        : null,
+      repo: projectRepos
+        ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
         : null,
       activity: {
         id: row.id as string | undefined,
@@ -94,12 +101,11 @@ export default async function HomePage({
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-        Global activity feed
+        Activity feed
       </h1>
       {feed.length === 0 ? (
         <p className="text-zinc-600 dark:text-zinc-400">
-          No activity yet. Sign in with GitHub and track a repo to see commits
-          here.
+          It&apos;s quiet... too quiet.
         </p>
       ) : (
         <>
@@ -109,6 +115,7 @@ export default async function HomePage({
                 key={item.activity.id ?? item.activity.date_utc}
                 user={item.user}
                 project={item.project}
+                repo={item.repo}
                 activity={item.activity}
                 showUser={true}
               />

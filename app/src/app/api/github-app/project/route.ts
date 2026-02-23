@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { upsertProject } from "@/lib/projects";
+import { createProjectWithRepo } from "@/lib/projects";
 import { NextResponse } from "next/server";
 import { verifySetupToken } from "@/lib/github-app";
 
@@ -14,14 +14,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 400 });
   }
 
-  let body: { token?: string; repo_full_name?: string; repo_url?: string };
+  let body: { token?: string; repo_full_name?: string; repo_url?: string; title?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { token, repo_full_name, repo_url } = body;
+  const { token, repo_full_name, repo_url, title } = body;
   const installationId = verifySetupToken(token ?? null);
   if (installationId === null) {
     return NextResponse.json({ error: "Invalid or expired setup token" }, { status: 400 });
@@ -33,11 +33,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const { error } = await upsertProject(user.userId, {
-    repoFullName: repo_full_name,
-    repoUrl: repo_url,
-    installationId,
-  });
+  const repoName = repo_full_name.split("/").pop() ?? repo_full_name;
+  const projectTitle = title?.trim() || repoName;
+
+  const { error } = await createProjectWithRepo(
+    user.userId,
+    { title: projectTitle },
+    { repoFullName: repo_full_name, repoUrl: repo_url, installationId }
+  );
   if (error) {
     return NextResponse.json({ error }, { status: 500 });
   }

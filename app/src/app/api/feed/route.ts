@@ -21,8 +21,10 @@ export async function GET(request: Request) {
       commit_messages,
       user_id,
       project_id,
+      project_repo_id,
       users!inner(id, username, avatar_url),
-      projects!inner(repo_full_name, repo_url, active)
+      projects!inner(id, title, active),
+      project_repos(repo_full_name, repo_url)
     `
     )
     .eq("projects.active", true)
@@ -48,12 +50,16 @@ export async function GET(request: Request) {
   const feed = items.map((row: Record<string, unknown>) => {
     const users = row.users as Record<string, unknown> | null;
     const projects = row.projects as Record<string, unknown> | null;
+    const projectRepos = row.project_repos as Record<string, unknown> | null;
     return {
       user: users
         ? { id: users.id, username: users.username, avatar_url: users.avatar_url }
         : null,
       project: projects
-        ? { repo_full_name: projects.repo_full_name, repo_url: projects.repo_url }
+        ? { id: projects.id, title: projects.title }
+        : null,
+      repo: projectRepos
+        ? { repo_full_name: projectRepos.repo_full_name, repo_url: projectRepos.repo_url }
         : null,
       activity: {
         id: row.id,
