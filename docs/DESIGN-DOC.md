@@ -3,6 +3,17 @@
 ## 1. Executive Summary
 5 Minutes a Day is a web-based "Build in Public" platform designed to help users overcome the friction of starting. By celebrating daily efforts as small as 5 minutes, it fosters long-term consistency through social accountability and automated tracking.
 
+### Current Simplified V1 Scope
+
+The **currently targeted v1** is intentionally much smaller than the full design in this document:
+
+- Multi-user, GitHub-only integration.
+- Automatic, per-day activity posts based on commits.
+- Public, read-only global feed and per-user feeds.
+- **No** manual posts, comments, likes, streak grace rules, freezes, badges, or advanced gamification.
+
+The detailed spec for this simplified v1 lives in `docs/V1-SPEC.md`. The remainder of this document describes the **longer-term product vision** (v2+).
+
 
 ## 2. Core Features & Requirements
 
@@ -52,7 +63,7 @@ Category Filter Bar: Quick-toggle chips (#Coding, #Writing, #Art, etc.).
 
 ## 2. The Login / Gateway Screen
 A clean, minimalist screen focused on conversion.
-Login Options: Two large buttons: "Continue with GitHub" and "Continue with Google."
+Login Options: A primary button "Continue with GitHub." Support for additional providers (e.g., Google) is deferred to a future v3, which will also require onboarding to support GitHub repo authorization for non-GitHub identities.
 Social Proof: A small caption: "Join 1,200+ builders staying consistent today."
 
 

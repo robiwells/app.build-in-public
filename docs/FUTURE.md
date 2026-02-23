@@ -25,7 +25,7 @@ New Platforms: Strava (Fitness), Figma (Design), Duolingo (Language).
 # 2. Updated MVP Feature Set
 Text & Image Posts (No Video for v1).
 GitHub Auto-Tracking (Any commit counts).
-Global Firehose with Category Filters (#Coding, #Art, #Writing).
+Global Firehose with Category Filters (#Coding, #Art, #Writing), with pagination and per-user aggregation so high-activity users don't flood the feed.
 The 48-Hour Rule: 2-day grace period before streak reset.
 Public Profiles with a "Contribution Map" (visualizing consistency).
 
