@@ -7,6 +7,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     GitHub({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
+      authorization: { params: { scope: "read:user repo" } },
     }),
   ],
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
@@ -31,7 +32,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (dbUser?.id) (user as Record<string, unknown>).dbUserId = dbUser.id;
       return true;
     },
-    async jwt({ token, user, profile }) {
+    async jwt({ token, user, profile, account }) {
+      if (account?.access_token) token.accessToken = account.access_token;
       if (user && (user as Record<string, unknown>).dbUserId) {
         token.userId = (user as Record<string, unknown>).dbUserId as string;
         token.username =
@@ -41,9 +43,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as Record<string, unknown>).userId = token.userId;
-        (session.user as Record<string, unknown>).username = token.username;
+        const u = session.user as unknown as Record<string, unknown>;
+        u.userId = token.userId;
+        u.username = token.username;
       }
+      (session as unknown as Record<string, unknown>).accessToken = token.accessToken;
       return session;
     },
     async redirect({ url, baseUrl }) {
