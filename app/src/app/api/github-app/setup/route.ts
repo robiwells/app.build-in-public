@@ -64,22 +64,33 @@ export async function GET(request: Request) {
       .maybeSingle();
     const repo = repos[0];
     if (existing) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("projects")
         .update({
+          active: true,
           repo_full_name: repo.full_name,
           repo_url: repo.html_url,
           installation_id: installationId,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
+      if (updateError) {
+        return NextResponse.redirect(
+          new URL("/onboarding?error=invalid_setup", request.url).toString()
+        );
+      }
     } else {
-      await supabase.from("projects").insert({
+      const { error: insertError } = await supabase.from("projects").insert({
         user_id: user.userId,
         repo_full_name: repo.full_name,
         repo_url: repo.html_url,
         installation_id: installationId,
       });
+      if (insertError) {
+        return NextResponse.redirect(
+          new URL("/onboarding?error=invalid_setup", request.url).toString()
+        );
+      }
     }
     return NextResponse.redirect(
       new URL(`/u/${user.username}`, request.url).toString()

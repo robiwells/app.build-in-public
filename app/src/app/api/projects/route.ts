@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     const { error } = await supabase
       .from("projects")
       .update({
+        active: true,
         repo_full_name,
         repo_url,
         installation_id,

@@ -43,11 +43,12 @@ export async function processPushEvent(payload: unknown): Promise<void> {
   if (!repoFullName) return;
 
   const supabase = createSupabaseAdmin();
+  // Case-insensitive match (GitHub may send different casing than we stored)
   const { data: project } = await supabase
     .from("projects")
     .select("id, user_id")
-    .eq("repo_full_name", repoFullName)
     .eq("active", true)
+    .ilike("repo_full_name", repoFullName.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_"))
     .maybeSingle();
 
   if (!project) return;
