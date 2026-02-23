@@ -6,12 +6,12 @@ import { RepoPicker } from "@/components/RepoPicker";
 export default async function OnboardingPage() {
   const session = await auth();
   if (!session?.user) {
-    redirect("/api/auth/signin/github?callbackUrl=/onboarding");
+    redirect("/api/auth/signin?callbackUrl=/onboarding");
   }
 
   const user = session.user as { userId?: string; username?: string };
   if (!user.userId || !user.username) {
-    redirect("/api/auth/signin/github?callbackUrl=/onboarding");
+    redirect("/api/auth/signin?callbackUrl=/onboarding");
   }
 
   const supabase = createSupabaseAdmin();

@@ -1,3 +1,6 @@
+To add:
+- publishable key and secrey key for supabase, anon is legacy
+
 # V1 Spec: GitHub-Only Auto Feed
 
 This document defines the **simplified v1** of the product: a **public, read-only feed of automatic GitHub activity posts**, with minimal multi-user support and no social interactions.

@@ -12,8 +12,8 @@
 1. Create a project at [supabase.com](https://supabase.com).
 2. In **Settings → API**, note:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-   - anon public → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - service_role (secret) → `SUPABASE_SERVICE_ROLE_KEY`
+   - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - Secret key → `SUPABASE_SECRET_KEY`
 3. Run migrations from the `app` directory:
 
    ```bash
@@ -45,8 +45,8 @@
    | `NEXTAUTH_URL`              | `https://<your-vercel-domain>`      |
    | `NEXTAUTH_SECRET`           | `openssl rand -base64 32`            |
    | `NEXT_PUBLIC_SUPABASE_URL`  | Supabase project URL                 |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key                |
-   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key            |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key   |
+   | `SUPABASE_SECRET_KEY`       | Supabase secret key                  |
    | `GITHUB_WEBHOOK_SECRET`     | Secret you set when creating the webhook |
 
 4. Deploy.

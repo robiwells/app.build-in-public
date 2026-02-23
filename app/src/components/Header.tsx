@@ -40,7 +40,7 @@ export async function Header() {
             </>
           ) : (
             <Link
-              href="/api/auth/signin/github?callbackUrl=/onboarding"
+              href="/api/auth/signin?callbackUrl=/onboarding"
               className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               Sign in with GitHub

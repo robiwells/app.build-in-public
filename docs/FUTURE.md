@@ -41,3 +41,6 @@ Duolingo/Language Apps: API connections for daily learners.
 
 # 5. Retention & Growth
 Nudges: Email or Browser notifications when a user is 4 hours away from a UTC day-reset.
+
+# 6. Projects page on a users profile
+Can promote projects to the feed

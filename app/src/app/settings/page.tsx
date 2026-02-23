@@ -6,11 +6,11 @@ import { SettingsForm } from "@/components/SettingsForm";
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user) {
-    redirect("/api/auth/signin/github?callbackUrl=/settings");
+    redirect("/api/auth/signin?callbackUrl=/settings");
   }
 
   const user = session.user as { userId?: string; username?: string };
-  if (!user.userId) redirect("/api/auth/signin/github?callbackUrl=/settings");
+  if (!user.userId) redirect("/api/auth/signin?callbackUrl=/settings");
 
   const supabase = createSupabaseAdmin();
   const { data: project } = await supabase

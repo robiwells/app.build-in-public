@@ -3,6 +3,7 @@ import GitHub from "next-auth/providers/github";
 import { createSupabaseAdmin } from "@/lib/supabase";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  basePath: "/api/auth",
   providers: [
     GitHub({
       clientId: process.env.GITHUB_ID!,
@@ -55,9 +56,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (new URL(url).origin !== baseUrl) return baseUrl;
       return url;
     },
-  },
-  pages: {
-    signIn: "/",
   },
   trustHost: true,
 });
