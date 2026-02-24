@@ -13,7 +13,7 @@ type ComposerProps = {
   onPosted?: () => void;
 };
 
-export function Composer({ userId, projects, timezone, onPosted }: ComposerProps) {
+export function Composer({ projects, timezone, onPosted }: ComposerProps) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [postType, setPostType] = useState<"manual" | "milestone">("manual");

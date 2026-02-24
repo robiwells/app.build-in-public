@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { signOut } from "next-auth/react";
 
 interface UserMenuProps {
@@ -34,9 +35,11 @@ export function UserMenu({ username, avatarUrl, profileHref }: UserMenuProps) {
         aria-label="Open user menu"
       >
         {avatarUrl ? (
-          <img
+          <Image
             src={avatarUrl}
             alt=""
+            width={32}
+            height={32}
             className="h-full w-full rounded-full object-cover"
           />
         ) : (
