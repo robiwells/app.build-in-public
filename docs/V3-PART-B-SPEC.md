@@ -3,7 +3,7 @@
 **Build after Part A.** Part B adds hearts, comments, category filtering, and post detail threads. It assumes Part A is done: unified posts (manual + auto), streaks, streak freeze (single toggle), and basic profile/settings.
 
 ---
-
+ 
 ## 0. Current architecture (reference)
 
 Part B builds on the **post–Part A** codebase. Below is the state after Part A.
