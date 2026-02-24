@@ -46,3 +46,5 @@ Nudges: Email or Browser notifications when a user is 4 hours away from a UTC da
 Can promote projects to the feed
 
 # 7. Visual way to show progress (e.g. milestones)
+
+# 8. User chat system
