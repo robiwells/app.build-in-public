@@ -112,7 +112,7 @@ export default async function StreaksDashboard({
         <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
           365-day consistency
         </h2>
-        <ConsistencyGrid activeDays={activeDays} />
+        <ConsistencyGrid activeDays={activeDays} timezone={user.timezone} />
       </section>
 
       {isOwner && (
