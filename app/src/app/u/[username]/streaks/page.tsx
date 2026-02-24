@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
-import { computeStreakStatus, isResetImminent } from "@/lib/streak";
+import { computeStreakStatus, computeStreak, isResetImminent } from "@/lib/streak";
 import { ConsistencyGrid } from "@/components/ConsistencyGrid";
 import { FreezeControl } from "./FreezeControl";
 import type { Json } from "@/lib/database.types";
@@ -58,20 +58,22 @@ export default async function StreaksDashboard({
 
   const activeDays = [...new Set((activityRows ?? []).map((r) => r.date_local as string))];
 
+  // Compute streak from activities so it stays correct even if activities were added out of order
+  const { currentStreak, longestStreak, lastActiveDayLocal: computedLastActive } = await computeStreak(user.id);
   const meta = parseMetadata(user.streak_metadata);
   const status = computeStreakStatus(
-    meta.lastActiveDayLocal ?? null,
+    computedLastActive ?? meta.lastActiveDayLocal ?? null,
     user.timezone,
     user.streak_frozen
   );
-  const resetImminentFlag = isResetImminent(meta.lastActiveDayLocal ?? null, user.timezone);
+  const resetImminentFlag = isResetImminent(
+    computedLastActive ?? meta.lastActiveDayLocal ?? null,
+    user.timezone
+  );
 
   const session = await auth();
   const sessionUser = session?.user as { userId?: string } | undefined;
   const isOwner = sessionUser?.userId === user.id;
-
-  const currentStreak = meta.currentStreak ?? 0;
-  const longestStreak = meta.longestStreak ?? 0;
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">

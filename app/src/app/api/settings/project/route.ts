@@ -22,6 +22,7 @@ export async function GET() {
       title,
       description,
       url,
+      slug,
       active,
       project_repos!left(id, repo_full_name, repo_url, installation_id, active)
     `

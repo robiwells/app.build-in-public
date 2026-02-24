@@ -16,6 +16,7 @@ type Project = {
   title: string;
   description: string | null;
   url: string | null;
+  slug: string | null;
   project_repos: ProjectRepo[];
 };
 
@@ -35,9 +36,11 @@ type FeedItem = {
   };
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function getProjectData(
   username: string,
-  projectId: string,
+  slugOrId: string,
   cursor?: string
 ): Promise<{
   user: { id: string; username: string; avatar_url: string | null };
@@ -61,6 +64,7 @@ async function getProjectData(
 
   if (!user) return null;
 
+  const byId = UUID_REGEX.test(slugOrId);
   const { data: project } = await supabase
     .from("projects")
     .select(
@@ -69,16 +73,19 @@ async function getProjectData(
       title,
       description,
       url,
+      slug,
       project_repos!left(id, repo_full_name, repo_url, active)
     `
     )
-    .eq("id", projectId)
     .eq("user_id", user.id)
+    .eq(byId ? "id" : "slug", slugOrId)
     .eq("active", true)
     .eq("project_repos.active", true)
     .maybeSingle();
 
   if (!project) return null;
+
+  const projectId = project.id;
 
   let query = supabase
     .from("activities")
@@ -142,10 +149,15 @@ async function getProjectData(
 
   return {
     user,
-    project: project as Project,
+    project: { ...project, slug: project.slug ?? null } as Project,
     feed,
     nextCursor,
   };
+}
+
+/** Path segment for project URL: slug if set, else id (backward compatible). */
+function projectSegment(p: { slug?: string | null; id: string }): string {
+  return p.slug?.trim() ? p.slug : p.id;
 }
 
 export default async function ProjectPage({
@@ -155,9 +167,9 @@ export default async function ProjectPage({
   params: Promise<{ username: string; projectId: string }>;
   searchParams: Promise<{ cursor?: string }>;
 }) {
-  const { username, projectId } = await params;
+  const { username, projectId: slugOrId } = await params;
   const { cursor } = await searchParams;
-  const data = await getProjectData(username, projectId, cursor);
+  const data = await getProjectData(username, slugOrId, cursor);
 
   if (!data) notFound();
 
@@ -231,7 +243,7 @@ export default async function ProjectPage({
             {nextCursor && (
               <div className="mt-6">
                 <Link
-                  href={`/u/${username}/projects/${projectId}?cursor=${encodeURIComponent(nextCursor)}`}
+                  href={`/u/${username}/projects/${projectSegment(project)}?cursor=${encodeURIComponent(nextCursor)}`}
                   className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
                 >
                   Load more

@@ -23,6 +23,7 @@ export async function GET() {
       title,
       description,
       url,
+      slug,
       category,
       active,
       created_at,

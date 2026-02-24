@@ -15,6 +15,7 @@ type Project = {
   title: string;
   description: string | null;
   url: string | null;
+  slug: string | null;
   category: string | null;
   project_repos: Repo[];
 };
@@ -66,7 +67,7 @@ export function ProjectManager({ username }: { username?: string } = {}) {
               project={p}
               editable={true}
               onUpdated={load}
-              projectHref={username ? `/u/${username}/projects/${p.id}` : undefined}
+              projectHref={username ? `/u/${username}/projects/${p.slug?.trim() ? p.slug : p.id}` : undefined}
             />
           ))}
         </div>

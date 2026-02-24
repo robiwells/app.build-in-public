@@ -14,7 +14,7 @@ export const revalidate = 30;
 type HomeFeedGroup = {
   key: string;
   user: { username: string; avatar_url: string | null } | null;
-  project: { title?: string; id?: string } | null;
+  project: { title?: string; id?: string; slug?: string | null } | null;
   date: string; // YYYY-MM-DD
   latestTimestamp: string | null;
   items: FeedItem[];
@@ -126,10 +126,10 @@ export default async function HomePage({
           <div className="space-y-4">
             {groupHomeFeed(feed).map((group) => {
               const profileHref = group.user?.username ? `/u/${group.user.username}` : undefined;
-              const groupProjectHref =
-                group.user?.username && group.project?.id
-                  ? `/u/${group.user.username}/projects/${group.project.id}`
-                  : undefined;
+                  const groupProjectHref =
+                    group.user?.username && group.project?.id
+                      ? `/u/${group.user.username}/projects/${group.project.slug?.trim() ? group.project.slug : group.project.id}`
+                      : undefined;
               return (
                 <div key={group.key} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                   {/* Group header */}
@@ -175,7 +175,7 @@ export default async function HomePage({
                     {group.items.map((item) => {
                       const projectHref =
                         item.user?.username && item.project?.id
-                          ? `/u/${item.user.username}/projects/${item.project.id}`
+                          ? `/u/${item.user.username}/projects/${item.project.slug?.trim() ? item.project.slug : item.project.id}`
                           : undefined;
                       const postHref = item.activity.id
                         ? `/p/${item.activity.id}`

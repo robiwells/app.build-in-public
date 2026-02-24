@@ -49,6 +49,7 @@ export interface Database {
           title: string;
           description: string | null;
           url: string | null;
+          slug: string | null;
           active: boolean;
           category: string | null;
           created_at: string;
@@ -60,6 +61,7 @@ export interface Database {
           title: string;
           description?: string | null;
           url?: string | null;
+          slug?: string | null;
           active?: boolean;
           category?: string | null;
           created_at?: string;
@@ -71,6 +73,7 @@ export interface Database {
           title?: string;
           description?: string | null;
           url?: string | null;
+          slug?: string | null;
           active?: boolean;
           category?: string | null;
           created_at?: string;

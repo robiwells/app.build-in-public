@@ -7,7 +7,7 @@ import { ActivityItem } from "@/components/ActivityItem";
 import { FeedRefresh } from "@/components/FeedRefresh";
 import { ProjectManager } from "@/components/ProjectManager";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
-import { computeStreakStatus } from "@/lib/streak";
+import { computeStreakStatus, computeStreak } from "@/lib/streak";
 import { queryUserFeed } from "@/lib/feed";
 import type { FeedItem, StreakMetadata } from "@/lib/types";
 import type { Json } from "@/lib/database.types";
@@ -25,6 +25,7 @@ type ProjectSummary = {
   title: string;
   description: string | null;
   url: string | null;
+  slug: string | null;
   project_repos: Repo[];
 };
 
@@ -124,6 +125,7 @@ async function getUserData(
       title,
       description,
       url,
+      slug,
       project_repos!left(id, repo_full_name, repo_url, active)
     `
     )
@@ -167,13 +169,13 @@ export default async function UserPage({
   const { user, projects, feed, nextCursor } = data;
   const isOwner = sessionUser?.userId === user.id;
 
+  const { currentStreak, lastActiveDayLocal: computedLastActive } = await computeStreak(user.id);
   const meta = parseMetadata(user.streak_metadata);
   const streakStatus = computeStreakStatus(
-    meta.lastActiveDayLocal ?? null,
+    computedLastActive ?? meta.lastActiveDayLocal ?? null,
     user.timezone,
     user.streak_frozen
   );
-  const currentStreak = meta.currentStreak ?? 0;
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
@@ -231,7 +233,7 @@ export default async function UserPage({
           </h2>
           <div className="space-y-3">
             {projects.map((p) => (
-              <Link key={p.id} href={`/u/${username}/projects/${p.id}`}>
+              <Link key={p.id} href={`/u/${username}/projects/${p.slug?.trim() ? p.slug : p.id}`}>
                 <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
                   <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
                     {p.title}
@@ -284,7 +286,7 @@ export default async function UserPage({
                   <div className="px-4">
                     {group.items.map((item) => {
                       const projectHref = item.project?.id
-                        ? `/u/${username}/projects/${item.project.id}`
+                        ? `/u/${username}/projects/${item.project?.slug?.trim() ? item.project.slug : item.project?.id}`
                         : undefined;
                       const postHref = item.activity.id
                         ? `/p/${item.activity.id}`

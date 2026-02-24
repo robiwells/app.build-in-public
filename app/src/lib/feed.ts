@@ -50,7 +50,11 @@ function mapRow(
 
   const item: FeedItem = {
     project: projects
-      ? { title: projects.title as string, id: projects.id as string }
+      ? {
+          title: projects.title as string,
+          id: projects.id as string,
+          slug: projects.slug as string | null | undefined,
+        }
       : null,
     repo: projectRepos
       ? {
@@ -101,7 +105,7 @@ export async function queryFeed(opts: FeedQueryOpts): Promise<{
        first_commit_at, last_commit_at, github_link, commit_messages,
        hearts_count, comments_count, user_id, project_id, project_repo_id,
        users!inner(id, username, avatar_url),
-       projects(id, title, active, category),
+       projects(id, title, slug, active, category),
        project_repos(repo_full_name, repo_url)`
     )
     .order("last_commit_at", { ascending: false })
@@ -153,7 +157,7 @@ export async function queryUserFeed(
       `id, date_utc, type, content_text, content_image_url, commit_count,
        first_commit_at, last_commit_at, github_link, commit_messages,
        hearts_count, comments_count, project_id, project_repo_id,
-       projects(id, title, active),
+       projects(id, title, slug, active),
        project_repos(repo_full_name, repo_url)`
     )
     .eq("user_id", userId)

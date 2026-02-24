@@ -70,7 +70,7 @@ export default async function PostDetailPage({
       project_id,
       project_repo_id,
       users(id, username, avatar_url),
-      projects(id, title, category),
+      projects(id, title, slug, category),
       project_repos(repo_full_name, repo_url)
     `
     )
@@ -85,7 +85,7 @@ export default async function PostDetailPage({
   const repo = r.project_repos as Record<string, unknown> | null;
 
   const user = u ? { id: u.id as string, username: u.username as string, avatar_url: u.avatar_url as string | null } : null;
-  const project = p ? { id: p.id as string, title: p.title as string, category: p.category as string | null } : null;
+  const project = p ? { id: p.id as string, title: p.title as string, slug: p.slug as string | null, category: p.category as string | null } : null;
   const repoData = repo ? { repo_full_name: repo.repo_full_name as string, repo_url: repo.repo_url as string } : null;
 
   // Fetch hearts
@@ -178,7 +178,7 @@ export default async function PostDetailPage({
               <>
                 <span className="text-zinc-400 dark:text-zinc-600 text-sm">·</span>
                 <Link
-                  href={user ? `/u/${user.username}/projects/${project.id}` : "#"}
+                  href={user && project ? `/u/${user.username}/projects/${project.slug?.trim() ? project.slug : project.id}` : "#"}
                   className="text-sm text-zinc-500 dark:text-zinc-400 hover:underline truncate"
                 >
                   {project.title}

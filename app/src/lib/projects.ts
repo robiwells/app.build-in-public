@@ -1,5 +1,37 @@
 import { createSupabaseAdmin } from "@/lib/supabase";
 
+function slugify(title: string): string {
+  const base = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return base || "project";
+}
+
+async function ensureUniqueSlug(
+  userId: string,
+  baseSlug: string,
+  excludeProjectId?: string
+): Promise<string> {
+  const supabase = createSupabaseAdmin();
+  let slug = baseSlug;
+  let n = 1;
+  for (;;) {
+    let query = supabase
+      .from("projects")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("slug", slug);
+    if (excludeProjectId) query = query.neq("id", excludeProjectId);
+    const { data } = await query.maybeSingle();
+    if (!data) return slug;
+    slug = `${baseSlug}-${++n}`;
+  }
+}
+
 export interface CreateProjectParams {
   title: string;
   description?: string | null;
@@ -25,6 +57,7 @@ export async function createProject(
   params: CreateProjectParams
 ): Promise<{ projectId: string | null; error: string | null }> {
   const supabase = createSupabaseAdmin();
+  const slug = await ensureUniqueSlug(userId, slugify(params.title));
   const { data, error } = await supabase
     .from("projects")
     .insert({
@@ -33,6 +66,7 @@ export async function createProject(
       description: params.description ?? null,
       url: params.url ?? null,
       category: params.category ?? null,
+      slug,
     })
     .select("id")
     .single();
@@ -56,6 +90,11 @@ export async function updateProject(
   if (params.description !== undefined) updates.description = params.description;
   if (params.url !== undefined) updates.url = params.url;
   if (params.category !== undefined) updates.category = params.category;
+
+  if (params.title !== undefined) {
+    const slug = await ensureUniqueSlug(userId, slugify(params.title), projectId);
+    updates.slug = slug;
+  }
 
   const { error } = await supabase
     .from("projects")

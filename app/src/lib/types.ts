@@ -1,6 +1,6 @@
 export type FeedItem = {
   user?: { username?: string; avatar_url?: string | null } | null;
-  project?: { title?: string; id?: string } | null;
+  project?: { title?: string; id?: string; slug?: string | null } | null;
   repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     id?: string;
