@@ -126,27 +126,50 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
     const existingMessages: string[] = existing?.commit_messages ?? [];
     const commitMessages = [...new Set([...existingMessages, ...newMessages])];
 
-    const { error: upsertError } = await supabase.from("activities").upsert(
-      {
-        user_id: projectRepo.user_id,
-        project_id: projectRepo.project_id,
-        project_repo_id: projectRepo.id,
-        date_utc: dateUtc,
-        type: "auto_github",
-        date_local: dateLocal,
-        commit_count: commitCount,
-        first_commit_at: firstCommitAt.toISOString(),
-        last_commit_at: lastCommitAt.toISOString(),
-        github_link: githubLink,
-        commit_messages: commitMessages,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,project_id,date_utc" }
-    );
+    const row = {
+      user_id: projectRepo.user_id,
+      project_id: projectRepo.project_id,
+      project_repo_id: projectRepo.id,
+      date_utc: dateUtc,
+      type: "auto_github" as const,
+      date_local: dateLocal,
+      commit_count: commitCount,
+      first_commit_at: firstCommitAt.toISOString(),
+      last_commit_at: lastCommitAt.toISOString(),
+      github_link: githubLink,
+      commit_messages: commitMessages,
+      updated_at: new Date().toISOString(),
+    };
 
-    if (upsertError) {
-      console.error("[activity] upsert failed", { error: upsertError, repo: repoFullName, date: dateUtc, deliveryId });
-      continue;
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from("activities")
+        .update({
+          project_repo_id: row.project_repo_id,
+          date_local: row.date_local,
+          commit_count: row.commit_count,
+          first_commit_at: row.first_commit_at,
+          last_commit_at: row.last_commit_at,
+          github_link: row.github_link,
+          commit_messages: row.commit_messages,
+          updated_at: row.updated_at,
+        })
+        .eq("user_id", projectRepo.user_id)
+        .eq("project_id", projectRepo.project_id)
+        .eq("date_utc", dateUtc)
+        .eq("type", "auto_github");
+
+      if (updateError) {
+        console.error("[activity] update failed", { error: updateError, repo: repoFullName, date: dateUtc, deliveryId });
+        continue;
+      }
+    } else {
+      const { error: insertError } = await supabase.from("activities").insert(row);
+
+      if (insertError) {
+        console.error("[activity] insert failed", { error: insertError, repo: repoFullName, date: dateUtc, deliveryId });
+        continue;
+      }
     }
 
     // Update streak atomically
