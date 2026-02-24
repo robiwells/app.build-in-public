@@ -1,15 +1,20 @@
-# V3 Spec: Multi-Provider Auth & Google + GitHub Linking
+# V4 Spec: Multi-Provider Auth & Google + GitHub Linking
 
-This document defines **V3**, which builds on top of:
+This document defines **V4**, which builds on top of:
 
-- **V1**: GitHub-only auth, auto GitHub posts, global + user feeds (`V1-SPEC.md`).
-- **V2**: Manual posts, social engine, streak logic, freeze tokens, richer screens (`V2-SPEC.md`).
+- **V1**: GitHub OAuth sign-in, auto GitHub posts (via webhooks), global + user feeds (`V1-SPEC.md`).
+- **V2 and V3**: Project spaces, manual posts, social engine (hearts, comments), streak logic, streak freeze, richer screens (`V2-SPEC.md`, `V3-PART-A-SPEC.md`, `V3-PART-B-SPEC.md`).
 
-V3’s focus is **identity and onboarding**:
+**Current state (before V4):**
+
+- **Sign-in** is GitHub-only (NextAuth with GitHub provider). Session has `userId` (= `users.id`), `username`. The `users` table is keyed by `github_id` (one user per GitHub account).
+- **Connecting GitHub for repo tracking is already decoupled from sign-in.** Users sign in with GitHub OAuth, then separately “connect” repos via the **GitHub App** installation flow: `/onboarding` (“Connect with GitHub App”) or Settings → Connectors → GitHub. Repo access is stored in `user_github_installations` (user_id, installation_id) and `project_repos` (per-project, per-repo). So identity (who you are) and which repos are tracked are already separate flows.
+
+V4’s focus is **identity and onboarding**:
 
 - Add **Google sign-in** as a first-class auth provider.
-- Allow users authenticated via **Google to connect GitHub** to track repos.
-- Support **account linking/merging** between providers.
+- Allow users authenticated via **Google** (or any future provider) to **connect GitHub** via the existing GitHub App flow to track repos—no change to how repo connection works.
+- Support **account linking/merging** between providers (e.g. link Google to an existing GitHub-signed-up account).
 - Keep the rest of the product (posts, social, streaks) functionally the same.
 
 ---
@@ -38,111 +43,67 @@ V3’s focus is **identity and onboarding**:
 
 ### 2.1 Separate “User Identity” from “Auth Provider”
 
-- Introduce (or formalize) a **`users`** table that is provider-agnostic:
-  - `id` (internal UUID/int).
-  - `display_name`.
-  - `username` (for URLs).
-  - `avatar_url`.
-  - `email` (primary contact).
-  - `created_at`, `updated_at`.
+- **Current:** `users` has `id`, `github_id`, `username`, `avatar_url`, `bio`, `timezone`, `streak_*`, etc. One user per GitHub account (sign-in upserts by `github_id`).
 
-- Add a **`user_identities`** (or `auth_accounts`) table:
-  - `id`.
-  - `user_id` (FK → `users`).
-  - `provider` (enum: `github`, `google`).
-  - `provider_user_id` (e.g., GitHub user ID, Google subject).
-  - `access_token` / `refresh_token` (encrypted/hashed or stored in vault).
-  - `scopes` (optional).
-  - `created_at`, `updated_at`.
+- **V4:** Evolve to a provider-agnostic identity model:
+  - **`users`** remains the central record but becomes provider-agnostic (no longer require `github_id` for creation):
+    - `id`, `username` (for URLs), `avatar_url`, `email` (optional), `display_name` (optional), plus existing fields (`bio`, `timezone`, `streak_*`, etc.). `github_id` may remain for backward compatibility or migration.
+  - Add **`user_identities`** (or `auth_accounts`):
+    - `id`, `user_id` (FK → `users`), `provider` (`github` | `google`), `provider_user_id`, optional tokens/scopes, `created_at`, `updated_at`.
+  - Users can have **1 or more identities**: GitHub-only, Google-only, or both.
 
-- Users can have **1 or more identities**:
-  - GitHub-only.
-  - Google-only (initially; must connect GitHub to track repos).
-  - Both GitHub + Google.
+### 2.2 Code Host Connections (Repo Tracking)
 
-### 2.2 Represent Code Host Connections Explicitly
+- **Current:** Repo tracking is already decoupled from sign-in. **GitHub App** installations are stored in `user_github_installations` (user_id, installation_id). Repos are linked to projects via **`project_repos`** (project_id, user_id, installation_id, repo_full_name, repo_url, active). There is no OAuth “code host” token stored for repo access—the GitHub App and webhooks handle commit events.
 
-- Introduce a **`code_host_connections`** table (provider-agnostic):
-  - `id`.
-  - `user_id` (FK → `users`).
-  - `provider` (enum: `github`, `bitbucket`, `gitlab`, …).
-  - `provider_user_id` (e.g., GitHub numeric ID, Bitbucket UUID).
-  - `provider_username`.
-  - `access_token` / `refresh_token` (if stored).
-  - `scopes` (e.g., repo/webhook scopes).
-  - `created_at`, `updated_at`.
+- **V4 option A (minimal):** Keep current model. Google (and any new auth provider) users simply use the same **GitHub App** flow to connect repos (Settings → Connectors → GitHub, or onboarding). No new tables required for “code host connection”; identity is the only change.
 
-- Existing V1/V2 tracked repo logic should be adjusted to:
-  - Reference `code_host_connections` instead of assuming repo access always comes from GitHub sign-in.
-  - Allow a user who logged in with any identity provider (GitHub, Google, etc.) to still connect a code host for repos.
-
-- **V3 implementation note**:
-  - V3 ships with **GitHub** as the only supported code host provider, but uses the provider-agnostic model so **Bitbucket** (and others) can be added later without schema churn.
+- **V4 option B (formalized):** Introduce a **`code_host_connections`** table (e.g. one row per user per GitHub App installation, or per connected account) and have `project_repos` reference it. This is a schema evolution for future multi–code-host support (Bitbucket, etc.); not required for “Google sign-in + connect GitHub” to work.
 
 ### 2.3 Projects / Tracked Repos
 
-- Existing `projects` / `tracked_repos` model is updated to:
-  - `id`.
-  - `user_id`.
-  - `code_host_connection_id` (FK → `code_host_connections`).
-  - `provider` (enum mirroring `code_host_connections.provider`, e.g., `github`, `bitbucket`).
-  - `repo_full_name` (provider-specific identifier; GitHub example: `owner/repo`).
-  - `repo_url`.
-  - `category` or `category_id` (from V2).
-  - `active` (bool).
-  - `created_at`, `updated_at`.
+- **Current:** `projects` (user_id, title, description, url, active, category) and **`project_repos`** (project_id, user_id, installation_id, repo_full_name, repo_url, active). No `code_host_connection_id` today.
+
+- **V4:** Either keep this schema (option A) or, if introducing `code_host_connections` (option B), add `code_host_connection_id` to `project_repos` and derive installation_id from that. Category and active already exist from V2/V3.
 
 ---
 
-## 3. Login & Onboarding Flows (V3)
+## 3. Login & Onboarding Flows (V4)
 
 ### 3.1 Login Gateway Screen
 
-- Login screen now has **two options**:
+- **Current:** Single option: “Continue with GitHub” (e.g. `SignInModal`, `callbackUrl=/onboarding`).
+
+- **V4:** Login screen has **two options**:
   - “Continue with GitHub”.
   - “Continue with Google”.
 
-- Behavior:
-  - Both buttons ultimately result in:
-    - Creating or finding a `user` row.
-    - Creating or updating a `user_identities` row for that provider.
-  - After login, we run **post-login routing** (see 3.3).
+- Behavior for both:
+  - Create or find a `user` row and create/update the corresponding `user_identities` row.
+  - After login, run **post-login routing** (see 3.3).
 
 ### 3.2 Provider-Specific OAuth Behavior
 
 #### 3.2.1 GitHub Sign-In
 
-- Largely unchanged from V1/V2, but now:
-  - We create/update:
-    - `user_identities` row with `provider = github`.
-    - `code_host_connections` row with `provider = github` (if not exists) tied to this `user`.
-  - We ensure there is **exactly one** `code_host_connections` row per user for `provider = github` (per GitHub account).
+- **Current:** NextAuth GitHub provider; sign-in callback upserts `users` by `github_id`, sets session `userId` and `username`. Repo access is **not** created at sign-in; user must complete **GitHub App** installation (onboarding or Settings) to track repos.
+- **V4:** Same idea. Create/update `user_identities` with `provider = github`. Do **not** assume repo access from sign-in; user connects repos via the existing GitHub App flow. If we introduce `code_host_connections`, we could create or link one when the user first completes a GitHub App install.
 
 #### 3.2.2 Google Sign-In
 
-- New in V3:
-  - On successful Google OAuth:
-    - Create/update `user_identities` row with `provider = google`.
-    - **No code host connection is created yet**.
-  - After login, route the user into an **onboarding state** that prompts them to connect a code host (GitHub in V3) if they want auto tracking.
+- **New in V4:** On successful Google OAuth, create/update `user_identities` with `provider = google`. No repo connection is created. After login, route into onboarding that prompts connecting GitHub (via GitHub App) if they want auto tracking.
 
 ### 3.3 Post-Login Routing Logic
 
-After any login (GitHub or Google), run:
+**Current:** After GitHub sign-in, redirect to `callbackUrl` (e.g. `/onboarding`). Onboarding page checks for existing active `project_repos`; if none, shows “Connect with GitHub App”. After App install, user is sent to repo picker (`/onboarding/github-app`) or can go to `/u/:username`.
 
-1. **Find or create user**
-   - If provider identity already linked to a `user_id`, use it.
-   - Otherwise:
-     - See “Account Linking/Merging” (Section 4).
+**V4:** After any login (GitHub or Google):
 
-2. **Check code host connection**
-   - If user has a `code_host_connections` row for `provider = github` **and** at least one `project`:
-     - Redirect to:
-       - `/` or `/u/:username` (as per V2 behavior).
-   - If user has a `code_host_connections` row for `provider = github` **but no projects yet**:
-     - Redirect to **Project Setup** (`/onboarding/project`).
-   - If user has **no** `code_host_connections` row for `provider = github`:
-     - Redirect to **Code Host Connection Onboarding** (`/onboarding/code-host`).
+1. **Find or create user** (and link identity); see Section 4 for linking/merging.
+2. **Check repo tracking:**
+   - If user has at least one active **project_repos** (or equivalent): redirect to `/` or `/u/:username`.
+   - If user has **user_github_installations** (or a GitHub code host connection) but no projects/repos yet: redirect to **project/repo setup** (e.g. `/onboarding` or `/onboarding/github-app` as today).
+   - If user has **no** GitHub connection yet: redirect to **connect-GitHub onboarding** (e.g. `/onboarding` with copy that explains “Connect GitHub to track repos”).
 
 ---
 
@@ -154,73 +115,40 @@ After any login (GitHub or Google), run:
 
 - User originally signed up with GitHub, now clicks “Link Google account” in Settings:
   - Redirect to Google OAuth.
-  - On success:
-    - Create `user_identities` row with `provider = google` and `user_id` = current user.
-  - No merging needed; identity simply attaches to the same `user`.
+  - On success: Create `user_identities` row with `provider = google` and `user_id` = current user. No merging needed.
 
-#### 4.1.2 From Google-first to GitHub
+#### 4.1.2 From Google-first to GitHub (for sign-in identity)
 
-- User originally signed up with Google, now:
-  - Onboarding (`/onboarding/code-host`) offers a “Connect GitHub” button (V3), and may later offer other code hosts (e.g., Bitbucket).
-  - Or Settings offers a “Connect GitHub” action (and later other code hosts).
-- Flow:
-  - Redirect to GitHub OAuth.
-  - On success:
-    - If there is no existing `code_host_connections` row for this user with `provider = github`:
-      - Create `code_host_connections` row with `provider = github`.
-      - Create `user_identities` row with `provider = github` for this `user`.
-    - If another user already has a `code_host_connections` row with `provider = github` and this `provider_user_id`:
-      - See merging rules (4.2).
+- User signed up with Google and wants to also use GitHub to sign in (same account):
+  - Settings offers “Link GitHub account” (OAuth). On success, create `user_identities` row with `provider = github` for this `user`. Repo tracking is still separate (GitHub App); linking GitHub identity does not by itself add repos.
+
+#### 4.1.3 Connecting GitHub for repos (already in product)
+
+- **Current:** “Connecting GitHub” for repo tracking is done via **GitHub App** (onboarding or Settings → Connectors → GitHub), not OAuth. This does not create a second “identity”; it adds `user_github_installations` and then the user can add `project_repos`. No change in V4 beyond ensuring Google-signed-in users can use the same flow.
 
 ### 4.2 Merging Rules
 
 #### 4.2.1 Preferred Approach (Simple)
 
-- **Assumption for V3**:
-  - We can avoid complex merges by:
-    - Disallowing two fully separate users from being merged automatically.
-    - Instead, show a clear error if a GitHub account already belongs to a different user.
-
-- Behavior:
-  - If a Google-auth’d user tries to connect a GitHub account that’s already attached to another `user`:
-    - Show UI message:
-      - “This GitHub account is already linked to another 5 Minutes a Day account. Please sign out and log in with GitHub, or contact support to merge.”
-    - No automatic merge.
+- **V4:** No automatic merging of two separate users. If a user tries to link a provider (e.g. GitHub) that is already linked to a different `user`, show a clear error; do not merge. Repo connection (GitHub App) is per-user. When linking identity, if the provider account is already attached to another user, show a clear UI message and do not merge.
 
 #### 4.2.2 Optional Manual Merge (Future)
 
-- V3 can define but not fully implement:
-  - Admin tooling or explicit “merge accounts” flow.
-  - For now, treat this as an **out-of-scope operational process**.
+- For V4: Admin or explicit merge-accounts flow is out of scope.
 
 ---
 
 ## 5. Onboarding Changes
 
-### 5.1 Code Host Connection Onboarding (`/onboarding/code-host`)
+### 5.1 Connect Repos (current: `/onboarding`)
 
-- For users **without** a `code_host_connections` row for `provider = github`:
-  - Explain:
-    - “To track your work automatically, connect a code host.”
-    - In V3, the only available option is GitHub.
-  - Show a **“Connect GitHub”** button (V3):
-    - Redirects to GitHub OAuth with necessary scopes.
-  - Once GitHub is connected:
-    - Proceed to Project Setup (`/onboarding/project`).
+- **Current:** Users without active `project_repos` go to `/onboarding`, which shows Connect with GitHub App (GitHub App install link). After install, callback records `user_github_installations` and redirects to `/onboarding/github-app` to pick repos. No OAuth code-host token; repo access is via the App.
+- **V4:** Same flow. Copy should clarify that connecting GitHub is for tracking commits; sign-in identity is already set. Google-signed-in users use the same GitHub App flow.
 
-### 5.2 Project Setup (`/onboarding/project`)
+### 5.2 Repo / Project Setup (current: `/onboarding/github-app` and profile)
 
-- Same project setup as in V2:
-  - Project name.
-  - Category picker.
-  - Repo selection from connected code host account:
-    - Uses `code_host_connections` (GitHub in V3) to query repos.
-    - Allows toggling auto-tracking.
-
-- The key V3 change:
-  - This step is now **agnostic to initial identity provider**:
-    - For GitHub-first users: happens immediately after login if no projects exist.
-    - For Google-first users: happens after GitHub connection onboarding.
+- **Current:** After GitHub App install, user lands on `/onboarding/github-app` (repo picker). They add repos to existing projects or create new ones; project management is also on profile (`/u/:username`) and Settings.
+- **V4:** No change. This step is agnostic to identity provider (GitHub or Google); both use the same GitHub App and repo picker.
 
 ---
 
@@ -257,14 +185,11 @@ After any login (GitHub or Google), run:
 ## 7. Data & Security Considerations
 
 - **Tokens**:
-  - Store OAuth tokens securely (encrypted or in a secrets store).
-  - Implement refresh flows where applicable (especially for Google).
+  - **Current:** No stored OAuth tokens for repo access; GitHub App + webhooks handle commits. NextAuth session only.
+  - **V4:** Store identity-provider OAuth tokens (Google, and optionally GitHub when used for sign-in) securely; implement refresh where applicable (especially for Google).
 
 - **Scopes**:
-  - For GitHub (V3 code host):
-    - Request minimal scopes required for:
-      - Reading repos / webhooks.
-      - Receiving commit events.
+  - For GitHub **sign-in** (OAuth): minimal identity scopes (e.g. read:user). Repo access uses **GitHub App** (installations, webhooks), not OAuth repo scopes.
   - For future code hosts (e.g., Bitbucket):
     - Request minimal scopes required to list repos and receive push/commit events.
   - For Google:
@@ -279,20 +204,20 @@ After any login (GitHub or Google), run:
 
 ---
 
-## 8. Success Criteria for V3
+## 8. Success Criteria for V4
 
-V3 is successful when:
+V4 is successful when:
 
 - Users can:
   - Sign up with either GitHub **or** Google.
   - Link the missing provider later from Settings.
   - Sign in with either provider and land on the same account (no duplicates).
-  - If they start with Google, connect GitHub and then:
-    - Select repos.
+  - If they start with Google, connect GitHub via the existing GitHub App flow and then:
+    - Select repos (same as today).
     - See auto-generated posts in feeds as before.
 
 - The system:
-  - Stores identities and connections in a normalized way (`users`, `user_identities`, `code_host_connections`).
-  - Keeps all V1/V2 functionality working regardless of whether the initial login was GitHub or Google.
-  - Properly handles edge cases where a GitHub account is already in use by another user (no silent merges).
+  - Stores identities in a normalized way (`users`, `user_identities`). Repo connection remains as today (`user_github_installations`, `project_repos`) unless `code_host_connections` is introduced.
+  - Keeps all existing functionality working regardless of whether the initial login was GitHub or Google.
+  - Properly handles edge cases where a provider account is already linked to another user (no silent merges).
 

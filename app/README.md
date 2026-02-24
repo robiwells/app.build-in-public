@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 5 Minutes a Day — App
+
+Next.js app (NextAuth, Supabase) for the Build in Public product. Run from this directory.
 
 ## Getting Started
 
-First, run the development server:
+1. **Environment variables** — Copy `.env.local.example` to `.env.local` and fill in values. Required vars (Supabase, NextAuth, optional GitHub App) are listed in [DEPLOY.md](DEPLOY.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. **Development server:**
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   ```bash
+   npm run dev
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   Open [http://localhost:3000](http://localhost:3000).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. **Database** — Migrations live in `supabase/migrations/`. Apply via Supabase CLI or the Supabase SQL editor (see [DEPLOY.md](DEPLOY.md)).
+
+Main entry: `src/app/page.tsx`. The app uses [Geist](https://vercel.com/font) via `next/font`.
+
+## Deploy
+
+Vercel + Supabase. See [DEPLOY.md](DEPLOY.md) for env vars, GitHub OAuth, and GitHub App setup.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Docs](https://nextjs.org/docs)
+- [Next.js Deployment](https://nextjs.org/docs/app/building-your-application/deploying)

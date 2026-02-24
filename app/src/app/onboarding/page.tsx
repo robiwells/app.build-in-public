@@ -66,7 +66,7 @@ export default async function OnboardingPage({ searchParams }: Props) {
         </div>
       ) : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Set <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-700">GITHUB_APP_SLUG</code> and other GitHub App env vars in <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-700">.env.local</code>. See <strong>docs/DEPLOY.md</strong> section 5.
+          Set <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-700">GITHUB_APP_SLUG</code> and other GitHub App env vars in <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-700">.env.local</code>. See <strong>DEPLOY.md</strong> (in the app directory) section 5.
         </p>
       )}
     </main>
