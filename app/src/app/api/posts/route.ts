@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
   const userId = sessionUser.userId;
 
-  let body: { content_text?: unknown; project_id?: unknown; content_image_url?: unknown };
+  let body: { content_text?: unknown; project_id?: unknown; content_image_url?: unknown; type?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
 
   const projectId = typeof body.project_id === "string" ? body.project_id : null;
   const contentImageUrl = typeof body.content_image_url === "string" ? body.content_image_url : null;
+
+  const rawType = typeof body.type === "string" ? body.type : "manual";
+  if (rawType !== "manual" && rawType !== "milestone") {
+    return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+  }
+  const activityType: "manual" | "milestone" = rawType;
 
   const supabase = createSupabaseAdmin();
 
@@ -45,7 +51,7 @@ export async function POST(req: NextRequest) {
     .insert({
       user_id: userId,
       project_id: projectId,
-      type: "manual",
+      type: activityType,
       content_text: contentText,
       content_image_url: contentImageUrl,
       date_utc: dateUtc,

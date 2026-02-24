@@ -16,6 +16,7 @@ type ComposerProps = {
 export function Composer({ userId, projects, timezone, onPosted }: ComposerProps) {
   const router = useRouter();
   const [text, setText] = useState("");
+  const [postType, setPostType] = useState<"manual" | "milestone">("manual");
   const [projectId, setProjectId] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -88,6 +89,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
           content_text: text.trim(),
           project_id: projectId || undefined,
           content_image_url: contentImageUrl,
+          type: postType,
         }),
       });
 
@@ -116,10 +118,40 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
       onSubmit={handleSubmit}
       className="mb-6 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
     >
+      <div className="mb-3 flex gap-1">
+        <button
+          type="button"
+          onClick={() => setPostType("manual")}
+          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+            postType === "manual"
+              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "border border-zinc-300 text-zinc-600 hover:border-zinc-400 dark:border-zinc-600 dark:text-zinc-400"
+          }`}
+          disabled={isLoading}
+        >
+          Post
+        </button>
+        <button
+          type="button"
+          onClick={() => setPostType("milestone")}
+          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+            postType === "milestone"
+              ? "bg-amber-500 text-white"
+              : "border border-zinc-300 text-zinc-600 hover:border-zinc-400 dark:border-zinc-600 dark:text-zinc-400"
+          }`}
+          disabled={isLoading}
+        >
+          Milestone 🚀
+        </button>
+      </div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="What did you do for 5 minutes today?"
+        placeholder={
+          postType === "milestone"
+            ? "What did you ship? e.g. Launched v1.0 to production"
+            : "What did you do for 5 minutes today?"
+        }
         rows={3}
         className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
         disabled={isLoading}
@@ -173,7 +205,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
           disabled={isLoading || !text.trim()}
           className="ml-auto rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
         >
-          {uploading ? "Uploading…" : submitting ? "Posting…" : "Post"}
+          {uploading ? "Uploading…" : submitting ? "Posting…" : postType === "milestone" ? "Share milestone" : "Post"}
         </button>
       </div>
 

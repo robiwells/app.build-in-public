@@ -73,6 +73,7 @@ export function ActivityItem({
   postHref,
 }: ActivityItemProps) {
   const isManual = activity.type === "manual";
+  const isMilestone = activity.type === "milestone";
   const count = activity.commit_count ?? 0;
   const repoName = repo?.repo_full_name ?? "repo";
   const repoUrl = repo?.repo_url ?? "#";
@@ -81,7 +82,7 @@ export function ActivityItem({
   const messages = activity.commit_messages ?? [];
 
   return (
-    <article className="border-b border-zinc-200 py-4 last:border-0 dark:border-zinc-800">
+    <article className={`border-b py-4 last:border-0 ${isMilestone ? "border-amber-200 dark:border-amber-900" : "border-zinc-200 dark:border-zinc-800"}`}>
       <div className="flex items-start gap-3">
         {showUser && user?.avatar_url && (
           <Link href={`/u/${user.username}`} className="shrink-0">
@@ -125,7 +126,31 @@ export function ActivityItem({
             ) : null)}
           </p>
 
-          {isManual ? (
+          {isMilestone ? (
+            <>
+              <div className="mt-1 flex items-center gap-1.5">
+                <span className="text-base">🚀</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Milestone</span>
+              </div>
+              {activity.content_text && (
+                <p className="mt-1 whitespace-pre-wrap text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                  {activity.content_text}
+                </p>
+              )}
+              {activity.content_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={activity.content_image_url}
+                  alt=""
+                  className="mt-2 max-w-sm rounded-lg"
+                />
+              )}
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {formatDate(activity.date_utc)}
+                {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
+              </p>
+            </>
+          ) : isManual ? (
             <>
               {activity.content_text && (
                 <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200">

@@ -27,7 +27,9 @@ function groupHomeFeed(items: FeedItem[]): HomeFeedGroup[] {
     const username = item.user?.username ?? "unknown";
     const date = item.activity.date_utc ?? "";
     const projectId = item.project?.id ?? "none";
-    const key = `${username}_${projectId}_${date}`;
+    const key = item.activity.type === "milestone"
+      ? `milestone_${item.activity.id}`
+      : `${username}_${projectId}_${date}`;
 
     if (!map.has(key)) {
       map.set(key, {
@@ -131,7 +133,7 @@ export default async function HomePage({
                       ? `/u/${group.user.username}/projects/${group.project.slug?.trim() ? group.project.slug : group.project.id}`
                       : undefined;
               return (
-                <div key={group.key} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                <div key={group.key} className={`rounded-xl border overflow-hidden ${group.items.some(i => i.activity.type === "milestone") ? "border-amber-400 dark:border-amber-500" : "border-zinc-200 dark:border-zinc-800"}`}>
                   {/* Group header */}
                   <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
