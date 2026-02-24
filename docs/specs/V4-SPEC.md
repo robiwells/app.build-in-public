@@ -109,32 +109,49 @@ V4’s focus is **identity and onboarding**:
 
 ## 4. Account Linking & Merging
 
-### 4.1 Linking a Second Provider
+Account linking lets a user attach a second sign-in method (e.g. Google and GitHub) to the same `users` row so they can sign in with either and land on the same account. V4 implements **linking** (adding another provider to the current user); it does **not** implement merging two existing users into one.
 
-#### 4.1.1 From GitHub-first to Google
+### 4.1 Linking Flow (General)
 
-- User originally signed up with GitHub, now clicks “Link Google account” in Settings:
-  - Redirect to Google OAuth.
-  - On success: Create `user_identities` row with `provider = google` and `user_id` = current user. No merging needed.
+- **Trigger:** Authenticated user goes to Settings → Account / Linked accounts and clicks “Link” next to a provider they don’t have yet.
+- **OAuth in “link” mode:** The app redirects to the provider’s OAuth with a **state** (or equivalent) that indicates “link” and the **current user id** (e.g. `state=link:<user_id>` or store in signed cookie). This ensures the callback knows to attach the new identity to the current user, not to find-or-create a new user.
+- **Callback:** On successful OAuth callback:
+  1. If state is “link” and current session user matches the state user id: look up or create `user_identities` with `provider` and `provider_user_id` from the OAuth response. If an identity for this provider + provider_user_id **already exists for a different user**, return an error (see 4.2). Otherwise create/update the row with `user_id` = current user.
+  2. If state is normal sign-in (or missing): use existing find-or-create user logic (first-time sign-in).
+- **After linking:** Redirect back to Settings (or a “Successfully linked” page) and show both providers as connected.
 
-#### 4.1.2 From Google-first to GitHub (for sign-in identity)
+### 4.2 Linking per Provider
 
-- User signed up with Google and wants to also use GitHub to sign in (same account):
-  - Settings offers “Link GitHub account” (OAuth). On success, create `user_identities` row with `provider = github` for this `user`. Repo tracking is still separate (GitHub App); linking GitHub identity does not by itself add repos.
+#### 4.2.1 GitHub-first → link Google
 
-#### 4.1.3 Connecting GitHub for repos (already in product)
+- User signed up with GitHub. In Settings they click “Link Google account”.
+- Redirect to Google OAuth with link state (current `user_id`). On success: insert `user_identities` (provider = google, provider_user_id = Google sub, user_id = current user). No merge.
 
-- **Current:** “Connecting GitHub” for repo tracking is done via **GitHub App** (onboarding or Settings → Connectors → GitHub), not OAuth. This does not create a second “identity”; it adds `user_github_installations` and then the user can add `project_repos`. No change in V4 beyond ensuring Google-signed-in users can use the same flow.
+#### 4.2.2 Google-first → link GitHub
 
-### 4.2 Merging Rules
+- User signed up with Google. In Settings they click “Link GitHub account”.
+- Redirect to GitHub OAuth with link state (current `user_id`). On success: insert `user_identities` (provider = github, provider_user_id = GitHub id, user_id = current user). Repo tracking is unchanged; user still connects repos via the GitHub App flow separately.
 
-#### 4.2.1 Preferred Approach (Simple)
+#### 4.2.3 Connecting GitHub for repos (unchanged)
 
-- **V4:** No automatic merging of two separate users. If a user tries to link a provider (e.g. GitHub) that is already linked to a different `user`, show a clear error; do not merge. Repo connection (GitHub App) is per-user. When linking identity, if the provider account is already attached to another user, show a clear UI message and do not merge.
+- “Connecting GitHub” for **repo tracking** is done via the **GitHub App** (onboarding or Settings → Connectors), not via account-linking OAuth. That flow adds `user_github_installations` and `project_repos`. No change in V4; Google-signed-in users use the same GitHub App flow.
 
-#### 4.2.2 Optional Manual Merge (Future)
+### 4.3 Unlinking
 
-- For V4: Admin or explicit merge-accounts flow is out of scope.
+- **Guardrail:** A user must always have at least one sign-in method. If they have only one linked provider, do not allow “Unlink”; show copy like “Add another sign-in method before removing this one.”
+- **Action:** Unlinking removes (or soft-deletes) the `user_identities` row for that provider and clears any stored tokens for it. Core user data (posts, streaks, projects) is unchanged.
+- **Re-linking:** The same provider can be linked again later (same or different external account) as long as it is not already linked to another user (see 4.4).
+
+### 4.4 Conflict: Provider Already Linked to Another User
+
+- **Rule:** One provider account (e.g. one GitHub id, one Google sub) can be linked to at most one `users` row.
+- **Check:** Before creating a new `user_identities` row (either on first sign-in or on link), query: does there already exist a row with the same `provider` and `provider_user_id`? If yes and that row’s `user_id` is not the current user, do **not** create a second link; do not merge users.
+- **UI:** Show a clear message, e.g. “This GitHub account is already linked to another account. Sign in with that account to use it here, or contact support if you need to move it.”
+- **First sign-in:** If a user signs in with Google and that Google id is already in `user_identities` for another user, sign them in as that other user (existing behavior). If they intended to “link” instead, they must be signed into the target account first and use Settings → Link.
+
+### 4.5 Merging (Out of Scope)
+
+- V4 does **not** implement merging two existing users (e.g. “merge my GitHub-only account with my Google-only account”). That would require data migration, conflict resolution, and product decisions; treat as future work or manual process.
 
 ---
 
@@ -161,16 +178,9 @@ V4’s focus is **identity and onboarding**:
     - “Continue with GitHub”.
     - “Continue with Google”.
 
-- **Settings / Account Management**:
-  - Show connected providers:
-    - GitHub: connected/not connected.
-    - Google: connected/not connected.
-  - Allow:
-    - Linking a missing provider.
-    - Unlinking a provider (with guardrails if it’s the only provider).
-  - Clarify:
-    - GitHub is required for auto-tracking repos.
-    - Google is optional but convenient for login.
+- **Settings / Account Management** (see Section 4 for account linking):
+  - **Linked accounts:** List each provider (GitHub, Google) with status “Connected” or “Not connected”. For “Not connected”, show a “Link” button that starts the link flow (OAuth with link state). For “Connected”, show “Unlink” unless it’s the user’s only sign-in method (then show “Add another sign-in method before you can remove this one” or disable Unlink).
+  - Clarify in copy: GitHub (identity) is for sign-in; connecting GitHub for **repo tracking** is separate (Connectors). Google is optional for sign-in.
 
 ### 6.2 Minor Copy Updates
 
@@ -210,7 +220,7 @@ V4 is successful when:
 
 - Users can:
   - Sign up with either GitHub **or** Google.
-  - Link the missing provider later from Settings.
+  - **Link** the other provider from Settings (Section 4): same account, two sign-in methods; conflict if that provider is already linked to another user.
   - Sign in with either provider and land on the same account (no duplicates).
   - If they start with Google, connect GitHub via the existing GitHub App flow and then:
     - Select repos (same as today).
