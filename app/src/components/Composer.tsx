@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import imageCompression from "browser-image-compression";
 import { createClient } from "@supabase/supabase-js";
 
@@ -17,6 +18,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 export function Composer({ userId, projects, timezone, onPosted }: ComposerProps) {
+  const router = useRouter();
   const [text, setText] = useState("");
   const [projectId, setProjectId] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -100,6 +102,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
       setProjectId("");
       clearImage();
       onPosted?.();
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
     } finally {
