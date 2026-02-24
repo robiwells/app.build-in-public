@@ -7,6 +7,9 @@ type ActivityItemProps = {
   repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     date_utc?: string;
+    type?: string;
+    content_text?: string | null;
+    content_image_url?: string | null;
     commit_count?: number;
     first_commit_at?: string | null;
     last_commit_at?: string | null;
@@ -14,6 +17,7 @@ type ActivityItemProps = {
     commit_messages?: string[] | null;
   };
   showUser?: boolean;
+  showProject?: boolean;
   projectHref?: string;
 };
 
@@ -53,8 +57,10 @@ export function ActivityItem({
   repo,
   activity,
   showUser = true,
+  showProject = true,
   projectHref,
 }: ActivityItemProps) {
+  const isManual = activity.type === "manual";
   const count = activity.commit_count ?? 0;
   const repoName = repo?.repo_full_name ?? "repo";
   const repoUrl = repo?.repo_url ?? "#";
@@ -94,41 +100,69 @@ export function ActivityItem({
                 {" · "}
               </>
             )}
-            {projectHref ? (
-              <Link href={projectHref} className="font-medium hover:underline">
-                {projectTitle ?? repoName}
-              </Link>
-            ) : (
-              <span className="font-medium">{projectTitle ?? repoName}</span>
-            )}
+            {showProject && (projectTitle ? (
+              projectHref ? (
+                <Link href={projectHref} className="font-medium hover:underline">
+                  {projectTitle}
+                </Link>
+              ) : (
+                <span className="font-medium">{projectTitle}</span>
+              )
+            ) : !isManual ? (
+              <span className="font-medium">{repoName}</span>
+            ) : null)}
           </p>
 
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {count} commit{count !== 1 ? "s" : ""}
-            {repo?.repo_full_name && (
-              <> to{" "}
-                <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                  {repo.repo_full_name}
-                </a>
-              </>
-            )}
-            {" · "}
-            {formatDate(activity.date_utc)}
-            {timeRange && <> · {timeRange}</>}
-            {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
-            {activity.github_link && (
-              <> · <a href={activity.github_link} target="_blank" rel="noopener noreferrer" className="hover:underline">View on GitHub</a></>
-            )}
-          </p>
-          {messages.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-sm text-zinc-600 dark:text-zinc-400">
-              {messages.slice(0, 3).map((msg, i) => (
-                <li key={i} className="truncate">· {msg}</li>
-              ))}
-              {messages.length > 3 && (
-                <li className="text-zinc-400 dark:text-zinc-500">+ {messages.length - 3} more</li>
+          {isManual ? (
+            <>
+              {activity.content_text && (
+                <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200">
+                  {activity.content_text}
+                </p>
               )}
-            </ul>
+              {activity.content_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={activity.content_image_url}
+                  alt=""
+                  className="mt-2 max-w-sm rounded-lg"
+                />
+              )}
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {formatDate(activity.date_utc)}
+                {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {count} commit{count !== 1 ? "s" : ""}
+                {repo?.repo_full_name && (
+                  <> to{" "}
+                    <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {repo.repo_full_name}
+                    </a>
+                  </>
+                )}
+                {" · "}
+                {formatDate(activity.date_utc)}
+                {timeRange && <> · {timeRange}</>}
+                {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
+                {activity.github_link && (
+                  <> · <a href={activity.github_link} target="_blank" rel="noopener noreferrer" className="hover:underline">View on GitHub</a></>
+                )}
+              </p>
+              {messages.length > 0 && (
+                <ul className="mt-2 space-y-0.5 text-sm text-zinc-600 dark:text-zinc-400">
+                  {messages.slice(0, 3).map((msg, i) => (
+                    <li key={i} className="truncate">· {msg}</li>
+                  ))}
+                  {messages.length > 3 && (
+                    <li className="text-zinc-400 dark:text-zinc-500">+ {messages.length - 3} more</li>
+                  )}
+                </ul>
+              )}
+            </>
           )}
         </div>
       </div>

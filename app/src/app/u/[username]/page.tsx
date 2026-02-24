@@ -6,6 +6,8 @@ import { auth } from "@/lib/auth";
 import { ActivityItem } from "@/components/ActivityItem";
 import { ProjectManager } from "@/components/ProjectManager";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
+import { computeStreakStatus } from "@/lib/streak";
+import type { Json } from "@/lib/database.types";
 
 export const revalidate = 30;
 
@@ -29,6 +31,9 @@ type FeedItem = {
   activity: {
     id?: string;
     date_utc?: string;
+    type?: string;
+    content_text?: string | null;
+    content_image_url?: string | null;
     commit_count?: number;
     first_commit_at?: string | null;
     last_commit_at?: string | null;
@@ -37,11 +42,75 @@ type FeedItem = {
   };
 };
 
+type FeedGroup = {
+  key: string;
+  date: string; // date_utc YYYY-MM-DD
+  latestTimestamp: string | null;
+  items: FeedItem[];
+};
+
+function groupFeedItems(items: FeedItem[]): FeedGroup[] {
+  const map = new Map<string, FeedGroup>();
+
+  for (const item of items) {
+    const date = item.activity.date_utc ?? "";
+    const key = date || "unknown";
+
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        date,
+        latestTimestamp: null,
+        items: [],
+      });
+    }
+
+    const group = map.get(key)!;
+    group.items.push(item);
+
+    const ts = item.activity.last_commit_at ?? null;
+    if (ts && (!group.latestTimestamp || ts > group.latestTimestamp)) {
+      group.latestTimestamp = ts;
+    }
+  }
+
+  return [...map.values()].sort((a, b) => {
+    if (!a.latestTimestamp && !b.latestTimestamp) return 0;
+    if (!a.latestTimestamp) return 1;
+    if (!b.latestTimestamp) return -1;
+    return b.latestTimestamp.localeCompare(a.latestTimestamp);
+  });
+}
+
+function formatGroupDate(dateUtc: string): string {
+  const [y, m, d] = dateUtc.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+type StreakMetadata = {
+  currentStreak?: number;
+  longestStreak?: number;
+  lastActiveDayLocal?: string;
+};
+
+function parseMetadata(raw: Json | null): StreakMetadata {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return raw as StreakMetadata;
+}
+
 async function getUserData(
   username: string,
   cursor?: string
 ): Promise<{
-  user: { id: string; username: string; avatar_url: string | null; bio: string | null };
+  user: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    bio: string | null;
+    timezone: string;
+    streak_frozen: boolean;
+    streak_metadata: Json | null;
+  };
   projects: ProjectSummary[];
   feed: FeedItem[];
   nextCursor: string | null;
@@ -56,7 +125,7 @@ async function getUserData(
 
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("id, username, avatar_url, bio")
+    .select("id, username, avatar_url, bio, timezone, streak_frozen, streak_metadata")
     .ilike("username", pattern)
     .maybeSingle();
 
@@ -90,6 +159,9 @@ async function getUserData(
       `
       id,
       date_utc,
+      type,
+      content_text,
+      content_image_url,
       commit_count,
       first_commit_at,
       last_commit_at,
@@ -97,13 +169,13 @@ async function getUserData(
       commit_messages,
       project_id,
       project_repo_id,
-      projects!inner(id, title, active),
+      projects(id, title, active),
       project_repos(repo_full_name, repo_url)
     `
     )
     .eq("user_id", user.id)
-    .eq("projects.active", true)
     .order("last_commit_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
 
   if (cursor) {
@@ -139,6 +211,9 @@ async function getUserData(
       activity: {
         id: row.id as string | undefined,
         date_utc: row.date_utc as string | undefined,
+        type: row.type as string | undefined,
+        content_text: row.content_text as string | null | undefined,
+        content_image_url: row.content_image_url as string | null | undefined,
         commit_count: row.commit_count as number | undefined,
         first_commit_at: row.first_commit_at as string | null | undefined,
         last_commit_at: row.last_commit_at as string | null | undefined,
@@ -155,6 +230,13 @@ async function getUserData(
     nextCursor,
   };
 }
+
+const STATUS_STYLES: Record<string, string> = {
+  Safe: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  "At Risk": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  Frozen: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  New: "",
+};
 
 export default async function UserPage({
   params,
@@ -174,6 +256,14 @@ export default async function UserPage({
   const session = await auth();
   const sessionUser = session?.user as { userId?: string } | undefined;
   const isOwner = sessionUser?.userId === user.id;
+
+  const meta = parseMetadata(user.streak_metadata);
+  const streakStatus = computeStreakStatus(
+    meta.lastActiveDayLocal ?? null,
+    user.timezone,
+    user.streak_frozen
+  );
+  const currentStreak = meta.currentStreak ?? 0;
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
@@ -198,6 +288,26 @@ export default async function UserPage({
           <ProfileBioEditor bio={user.bio} isOwner={isOwner} />
         </div>
       </header>
+
+      {/* Streak summary */}
+      {streakStatus !== "New" && (
+        <Link href={`/u/${username}/streaks`} className="block mb-8">
+          <div className="flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700 transition-colors">
+            <span className="text-2xl">🔥</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                {currentStreak}
+              </span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">day streak</span>
+              {streakStatus !== "Safe" && (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[streakStatus] ?? ""}`}>
+                  {streakStatus}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
+      )}
 
       {/* Projects section */}
       {isOwner ? (
@@ -247,30 +357,39 @@ export default async function UserPage({
 
       {/* Activity feed */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-          Activity
-        </h2>
+        <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">Activity</h2>
         {feed.length === 0 ? (
           <p className="text-zinc-600 dark:text-zinc-400">No activity yet.</p>
         ) : (
           <>
-            <div className="space-y-0">
-              {feed.map((item) => {
-                const projectHref = item.project?.id
-                  ? `/u/${username}/projects/${item.project.id}`
-                  : undefined;
-                return (
-                  <ActivityItem
-                    key={item.activity.id ?? item.activity.date_utc}
-                    user={null}
-                    project={item.project}
-                    repo={item.repo}
-                    activity={item.activity}
-                    showUser={false}
-                    projectHref={projectHref}
-                  />
-                );
-              })}
+            <div className="space-y-4">
+              {groupFeedItems(feed).map((group) => (
+                <div key={group.key} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                  {/* Group header — date only */}
+                  <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{formatGroupDate(group.date)}</span>
+                  </div>
+                  {/* Items — each shows its own project name */}
+                  <div className="px-4">
+                    {group.items.map((item) => {
+                      const projectHref = item.project?.id
+                        ? `/u/${username}/projects/${item.project.id}`
+                        : undefined;
+                      return (
+                        <ActivityItem
+                          key={item.activity.id ?? item.activity.date_utc}
+                          user={null}
+                          project={item.project}
+                          repo={item.repo}
+                          activity={item.activity}
+                          showUser={false}
+                          projectHref={projectHref}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
             {nextCursor && (
               <div className="mt-6">

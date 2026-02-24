@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 
 type AvailableRepo = { full_name: string; html_url: string; installation_id: number };
 
+const CATEGORIES = ["Coding", "Writing", "Art", "Fitness", "Music", "Other"];
+
 export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
+  const [category, setCategory] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [availableRepos, setAvailableRepos] = useState<AvailableRepo[]>([]);
@@ -57,6 +60,7 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
           title: title.trim(),
           description: description.trim() || undefined,
           url: url.trim() || undefined,
+          category: category || undefined,
           ...(reposPayload?.length ? { repos: reposPayload } : {}),
         }),
       });
@@ -68,6 +72,7 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
       setTitle("");
       setDescription("");
       setUrl("");
+      setCategory("");
       setSelectedRepos(new Set());
       setOpen(false);
       onCreated?.();
@@ -115,6 +120,16 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
           placeholder="Project URL (optional)"
           className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
         />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+        >
+          <option value="">Category (optional)</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
         {/* Repo multi-select */}
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -176,6 +191,7 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
               setTitle("");
               setDescription("");
               setUrl("");
+              setCategory("");
               setSelectedRepos(new Set());
               setError("");
             }}

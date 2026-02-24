@@ -23,6 +23,7 @@ export async function GET() {
       title,
       description,
       url,
+      category,
       active,
       created_at,
       project_repos!left(id, repo_full_name, repo_url, installation_id, active)
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
     title?: string;
     description?: string;
     url?: string;
+    category?: string;
     repos?: Array<{ repo_full_name: string; repo_url: string; installation_id: number }>;
   };
   try {
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
     title: body.title.trim(),
     description: body.description?.trim() || null,
     url: body.url?.trim() || null,
+    category: body.category?.trim() || null,
   });
 
   if (error) {

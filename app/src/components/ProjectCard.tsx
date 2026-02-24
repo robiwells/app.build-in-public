@@ -14,8 +14,11 @@ type Project = {
   title: string;
   description: string | null;
   url: string | null;
+  category: string | null;
   project_repos: Repo[];
 };
+
+const CATEGORIES = ["Coding", "Writing", "Art", "Fitness", "Music", "Other"];
 
 type AvailableRepo = { full_name: string; html_url: string; installation_id: number };
 
@@ -34,6 +37,7 @@ export function ProjectCard({
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description ?? "");
   const [url, setUrl] = useState(project.url ?? "");
+  const [category, setCategory] = useState(project.category ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -73,6 +77,7 @@ export function ProjectCard({
           title: title.trim(),
           description: description.trim() || null,
           url: url.trim() || null,
+          category: category || null,
         }),
       });
       if (!res.ok) {
@@ -164,6 +169,16 @@ export function ProjectCard({
             placeholder="Project URL (optional)"
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
           />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            <option value="">Category (optional)</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
           {/* Repo multi-select when editing */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -224,6 +239,7 @@ export function ProjectCard({
                 setTitle(project.title);
                 setDescription(project.description ?? "");
                 setUrl(project.url ?? "");
+                setCategory(project.category ?? "");
               }}
               className="rounded-full px-4 py-1.5 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
             >
@@ -239,15 +255,22 @@ export function ProjectCard({
     <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {projectHref ? (
-              <Link href={projectHref} className="hover:underline">
-                {project.title}
-              </Link>
-            ) : (
-              project.title
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {projectHref ? (
+                <Link href={projectHref} className="hover:underline">
+                  {project.title}
+                </Link>
+              ) : (
+                project.title
+              )}
+            </h3>
+            {project.category && (
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                {project.category}
+              </span>
             )}
-          </h3>
+          </div>
           {project.description && (
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               {project.description}

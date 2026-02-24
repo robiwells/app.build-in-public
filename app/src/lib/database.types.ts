@@ -10,6 +10,9 @@ export interface Database {
           username: string;
           avatar_url: string | null;
           bio: string | null;
+          timezone: string;
+          streak_frozen: boolean;
+          streak_metadata: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -19,6 +22,9 @@ export interface Database {
           username: string;
           avatar_url?: string | null;
           bio?: string | null;
+          timezone?: string;
+          streak_frozen?: boolean;
+          streak_metadata?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -28,6 +34,9 @@ export interface Database {
           username?: string;
           avatar_url?: string | null;
           bio?: string | null;
+          timezone?: string;
+          streak_frozen?: boolean;
+          streak_metadata?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -41,6 +50,7 @@ export interface Database {
           description: string | null;
           url: string | null;
           active: boolean;
+          category: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -51,6 +61,7 @@ export interface Database {
           description?: string | null;
           url?: string | null;
           active?: boolean;
+          category?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -61,6 +72,7 @@ export interface Database {
           description?: string | null;
           url?: string | null;
           active?: boolean;
+          category?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -129,9 +141,13 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
-          project_id: string;
+          project_id: string | null;
           project_repo_id: string | null;
           date_utc: string;
+          type: string;
+          content_text: string | null;
+          content_image_url: string | null;
+          date_local: string | null;
           commit_count: number;
           first_commit_at: string | null;
           last_commit_at: string | null;
@@ -143,9 +159,13 @@ export interface Database {
         Insert: {
           id?: string;
           user_id: string;
-          project_id: string;
+          project_id?: string | null;
           project_repo_id?: string | null;
           date_utc: string;
+          type?: string;
+          content_text?: string | null;
+          content_image_url?: string | null;
+          date_local?: string | null;
           commit_count?: number;
           first_commit_at?: string | null;
           last_commit_at?: string | null;
@@ -157,9 +177,13 @@ export interface Database {
         Update: {
           id?: string;
           user_id?: string;
-          project_id?: string;
+          project_id?: string | null;
           project_repo_id?: string | null;
           date_utc?: string;
+          type?: string;
+          content_text?: string | null;
+          content_image_url?: string | null;
+          date_local?: string | null;
           commit_count?: number;
           first_commit_at?: string | null;
           last_commit_at?: string | null;
@@ -238,7 +262,12 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      increment_streak: {
+        Args: { p_user_id: string; p_date_local: string };
+        Returns: void;
+      };
+    };
     Enums: Record<string, never>;
   };
 }
