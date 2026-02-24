@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CATEGORIES } from "@/lib/constants";
 
 type Repo = {
   id: string;
@@ -17,8 +18,6 @@ type Project = {
   category: string | null;
   project_repos: Repo[];
 };
-
-const CATEGORIES = ["Coding", "Writing", "Art", "Fitness", "Music", "Other"];
 
 type AvailableRepo = { full_name: string; html_url: string; installation_id: number };
 

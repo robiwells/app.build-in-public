@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CATEGORIES } from "@/lib/constants";
 
 type AvailableRepo = { full_name: string; html_url: string; installation_id: number };
-
-const CATEGORIES = ["Coding", "Writing", "Art", "Fitness", "Music", "Other"];
 
 export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
   const [open, setOpen] = useState(false);

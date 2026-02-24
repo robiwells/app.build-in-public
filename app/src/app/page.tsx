@@ -1,34 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createSupabaseAdmin } from "@/lib/supabase";
 import { ActivityItem } from "@/components/ActivityItem";
 import { Composer } from "@/components/Composer";
 import { FeedRefresh } from "@/components/FeedRefresh";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { auth } from "@/lib/auth";
+import { queryFeed } from "@/lib/feed";
+import type { FeedItem } from "@/lib/types";
+import { createSupabaseAdmin } from "@/lib/supabase";
 
 export const revalidate = 30;
-
-type FeedItem = {
-  user?: { username?: string; avatar_url?: string | null } | null;
-  project?: { title?: string; id?: string } | null;
-  repo?: { repo_full_name?: string; repo_url?: string } | null;
-  activity: {
-    id?: string;
-    date_utc?: string;
-    type?: string;
-    content_text?: string | null;
-    content_image_url?: string | null;
-    commit_count?: number;
-    first_commit_at?: string | null;
-    last_commit_at?: string | null;
-    github_link?: string | null;
-    commit_messages?: string[] | null;
-    hearts_count?: number;
-    comments_count?: number;
-    hearted?: boolean;
-  };
-};
 
 type HomeFeedGroup = {
   key: string;
@@ -83,115 +64,6 @@ function formatGroupDate(dateUtc: string): string {
   return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-async function getFeed(
-  cursor?: string,
-  category?: string,
-  userId?: string
-): Promise<{ feed: FeedItem[]; nextCursor: string | null }> {
-  const supabase = createSupabaseAdmin();
-  const limit = 20;
-
-  let query = supabase
-    .from("activities")
-    .select(
-      `
-      id,
-      date_utc,
-      type,
-      content_text,
-      content_image_url,
-      commit_count,
-      first_commit_at,
-      last_commit_at,
-      github_link,
-      commit_messages,
-      hearts_count,
-      comments_count,
-      user_id,
-      project_id,
-      project_repo_id,
-      users!inner(id, username, avatar_url),
-      projects(id, title, active, category),
-      project_repos(repo_full_name, repo_url)
-    `
-    )
-    .order("last_commit_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(limit + 1);
-
-  if (cursor) {
-    query = query.lt("last_commit_at", cursor);
-  }
-
-  // Category filtering: fetch matching project IDs first
-  if (category) {
-    const { data: catProjects } = await supabase
-      .from("projects")
-      .select("id")
-      .ilike("category", category);
-    const projectIds = (catProjects ?? []).map((p: { id: string }) => p.id);
-    if (projectIds.length === 0) return { feed: [], nextCursor: null };
-    query = query.in("project_id", projectIds);
-  }
-
-  const { data: rows, error } = await query;
-
-  if (error || !rows) return { feed: [], nextCursor: null };
-
-  const hasMore = rows.length > limit;
-  const items = hasMore ? rows.slice(0, limit) : rows;
-  const nextCursor =
-    hasMore && items.length > 0
-      ? (items[items.length - 1] as { last_commit_at?: string | null }).last_commit_at ?? null
-      : null;
-
-  // Build hearted set for the session user
-  let heartedSet = new Set<string>();
-  if (userId && items.length > 0) {
-    const activityIds = items.map((r: Record<string, unknown>) => r.id as string).filter(Boolean);
-    const { data: heartRows } = await supabase
-      .from("hearts")
-      .select("post_id")
-      .eq("user_id", userId)
-      .in("post_id", activityIds);
-    heartedSet = new Set((heartRows ?? []).map((h: { post_id: string }) => h.post_id));
-  }
-
-  const feed = items.map((row: Record<string, unknown>) => {
-    const users = row.users as Record<string, unknown> | null;
-    const projects = row.projects as Record<string, unknown> | null;
-    const projectRepos = row.project_repos as Record<string, unknown> | null;
-    const id = row.id as string | undefined;
-    return {
-      user: users
-        ? { username: users.username as string, avatar_url: users.avatar_url as string | null }
-        : null,
-      project: projects
-        ? { title: projects.title as string, id: projects.id as string }
-        : null,
-      repo: projectRepos
-        ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
-        : null,
-      activity: {
-        id,
-        date_utc: row.date_utc as string | undefined,
-        type: row.type as string | undefined,
-        content_text: row.content_text as string | null | undefined,
-        content_image_url: row.content_image_url as string | null | undefined,
-        commit_count: row.commit_count as number | undefined,
-        first_commit_at: row.first_commit_at as string | null | undefined,
-        last_commit_at: row.last_commit_at as string | null | undefined,
-        github_link: row.github_link as string | null | undefined,
-        commit_messages: row.commit_messages as string[] | null | undefined,
-        hearts_count: row.hearts_count as number | undefined,
-        comments_count: row.comments_count as number | undefined,
-        hearted: id ? heartedSet.has(id) : false,
-      },
-    };
-  });
-
-  return { feed, nextCursor };
-}
 
 async function getSessionUserData(userId: string): Promise<{
   username: string;
@@ -218,9 +90,11 @@ export default async function HomePage({
   const { cursor, category } = await searchParams;
   const session = await auth();
   const sessionUser = session?.user as { userId?: string } | undefined;
-  const [{ feed, nextCursor }] = await Promise.all([
-    getFeed(cursor, category, sessionUser?.userId),
-  ]);
+  const { feed, nextCursor } = await queryFeed({
+    cursor,
+    category,
+    sessionUserId: sessionUser?.userId,
+  });
 
   const sessionUserData = sessionUser?.userId
     ? await getSessionUserData(sessionUser.userId)

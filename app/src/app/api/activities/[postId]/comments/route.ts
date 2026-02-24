@@ -2,46 +2,6 @@ import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ postId: string }> }
-) {
-  const { postId } = await params;
-  const supabase = createSupabaseAdmin();
-
-  const { data: activity } = await supabase
-    .from("activities")
-    .select("id")
-    .eq("id", postId)
-    .maybeSingle();
-
-  if (!activity) {
-    return NextResponse.json({ error: "Post not found" }, { status: 404 });
-  }
-
-  const { data: comments, error } = await supabase
-    .from("comments")
-    .select("id, body, created_at, user_id, users(id, username, avatar_url)")
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const result = (comments ?? []).map((c: Record<string, unknown>) => {
-    const u = c.users as Record<string, unknown> | null;
-    return {
-      id: c.id,
-      body: c.body,
-      created_at: c.created_at,
-      user: u ? { id: u.id, username: u.username, avatar_url: u.avatar_url } : null,
-    };
-  });
-
-  return NextResponse.json({ comments: result });
-}
-
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ postId: string }> }
@@ -87,7 +47,8 @@ export async function POST(
     .single();
 
   if (insertErr || !comment) {
-    return NextResponse.json({ error: insertErr?.message ?? "Insert failed" }, { status: 500 });
+    console.error("POST /api/activities/[postId]/comments error:", insertErr);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   const u = (comment as Record<string, unknown>).users as Record<string, unknown> | null;

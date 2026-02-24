@@ -8,6 +8,8 @@ import { FeedRefresh } from "@/components/FeedRefresh";
 import { ProjectManager } from "@/components/ProjectManager";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 import { computeStreakStatus } from "@/lib/streak";
+import { queryUserFeed } from "@/lib/feed";
+import type { FeedItem, StreakMetadata } from "@/lib/types";
 import type { Json } from "@/lib/database.types";
 
 export const revalidate = 30;
@@ -24,26 +26,6 @@ type ProjectSummary = {
   description: string | null;
   url: string | null;
   project_repos: Repo[];
-};
-
-type FeedItem = {
-  project?: { title?: string; id?: string } | null;
-  repo?: { repo_full_name?: string; repo_url?: string } | null;
-  activity: {
-    id?: string;
-    date_utc?: string;
-    type?: string;
-    content_text?: string | null;
-    content_image_url?: string | null;
-    commit_count?: number;
-    first_commit_at?: string | null;
-    last_commit_at?: string | null;
-    github_link?: string | null;
-    commit_messages?: string[] | null;
-    hearts_count?: number;
-    comments_count?: number;
-    hearted?: boolean;
-  };
 };
 
 type FeedGroup = {
@@ -91,12 +73,6 @@ function formatGroupDate(dateUtc: string): string {
   return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-type StreakMetadata = {
-  currentStreak?: number;
-  longestStreak?: number;
-  lastActiveDayLocal?: string;
-};
-
 function parseMetadata(raw: Json | null): StreakMetadata {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   return raw as StreakMetadata;
@@ -121,7 +97,6 @@ async function getUserData(
   nextCursor: string | null;
 } | null> {
   const supabase = createSupabaseAdmin();
-  const limit = 20;
 
   const pattern = username
     .replace(/\\/g, "\\\\")
@@ -157,94 +132,7 @@ async function getUserData(
     .eq("active", true)
     .order("created_at", { ascending: false });
 
-  // Fetch activity feed
-  let query = supabase
-    .from("activities")
-    .select(
-      `
-      id,
-      date_utc,
-      type,
-      content_text,
-      content_image_url,
-      commit_count,
-      first_commit_at,
-      last_commit_at,
-      github_link,
-      commit_messages,
-      hearts_count,
-      comments_count,
-      project_id,
-      project_repo_id,
-      projects(id, title, active),
-      project_repos(repo_full_name, repo_url)
-    `
-    )
-    .eq("user_id", user.id)
-    .order("last_commit_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(limit + 1);
-
-  if (cursor) {
-    query = query.lt("last_commit_at", cursor);
-  }
-
-  const { data: rows, error } = await query;
-
-  if (error || !rows) {
-    return {
-      user,
-      projects: (projects as ProjectSummary[]) ?? [],
-      feed: [],
-      nextCursor: null,
-    };
-  }
-
-  const hasMore = rows.length > limit;
-  const items = hasMore ? rows.slice(0, limit) : rows;
-  const nextCursor =
-    hasMore && items.length > 0
-      ? (items[items.length - 1] as { last_commit_at?: string | null }).last_commit_at ?? null
-      : null;
-
-  // Build hearted set for session user
-  let heartedSet = new Set<string>();
-  if (sessionUserId && items.length > 0) {
-    const activityIds = items.map((r: Record<string, unknown>) => r.id as string).filter(Boolean);
-    const { data: heartRows } = await supabase
-      .from("hearts")
-      .select("post_id")
-      .eq("user_id", sessionUserId)
-      .in("post_id", activityIds);
-    heartedSet = new Set((heartRows ?? []).map((h: { post_id: string }) => h.post_id));
-  }
-
-  const feed = items.map((row: Record<string, unknown>) => {
-    const proj = row.projects as Record<string, unknown> | null;
-    const projectRepos = row.project_repos as Record<string, unknown> | null;
-    const id = row.id as string | undefined;
-    return {
-      project: proj ? { title: proj.title as string, id: proj.id as string } : null,
-      repo: projectRepos
-        ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
-        : null,
-      activity: {
-        id,
-        date_utc: row.date_utc as string | undefined,
-        type: row.type as string | undefined,
-        content_text: row.content_text as string | null | undefined,
-        content_image_url: row.content_image_url as string | null | undefined,
-        commit_count: row.commit_count as number | undefined,
-        first_commit_at: row.first_commit_at as string | null | undefined,
-        last_commit_at: row.last_commit_at as string | null | undefined,
-        github_link: row.github_link as string | null | undefined,
-        commit_messages: row.commit_messages as string[] | null | undefined,
-        hearts_count: row.hearts_count as number | undefined,
-        comments_count: row.comments_count as number | undefined,
-        hearted: id ? heartedSet.has(id) : false,
-      },
-    };
-  });
+  const { feed, nextCursor } = await queryUserFeed(user.id, { cursor, sessionUserId });
 
   return {
     user,
