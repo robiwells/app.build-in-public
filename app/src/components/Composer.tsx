@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import imageCompression from "browser-image-compression";
-import { createClient } from "@supabase/supabase-js";
 
 type Project = { id: string; title: string };
 
@@ -13,9 +12,6 @@ type ComposerProps = {
   timezone: string;
   onPosted?: () => void;
 };
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 export function Composer({ userId, projects, timezone, onPosted }: ComposerProps) {
   const router = useRouter();
@@ -49,18 +45,21 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
       useWebWorker: true,
     });
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const ext = "webp";
-    const path = `activity_images/${userId}/${crypto.randomUUID()}.${ext}`;
+    const formData = new FormData();
+    formData.set("file", compressed, "image.webp");
 
-    const { error: uploadError } = await supabase.storage
-      .from("activity_images")
-      .upload(path, compressed, { contentType: "image/webp", upsert: false });
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
 
-    if (uploadError) throw new Error(uploadError.message);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error ?? "Upload failed");
+    }
 
-    const { data } = supabase.storage.from("activity_images").getPublicUrl(path);
-    return data.publicUrl;
+    const data = (await res.json()) as { url: string };
+    return data.url;
   }
 
   async function handleSubmit(e: React.FormEvent) {
