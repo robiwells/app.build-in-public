@@ -24,6 +24,9 @@ type FeedItem = {
   activity: {
     id?: string;
     date_utc?: string;
+    type?: string;
+    content_text?: string | null;
+    content_image_url?: string | null;
     commit_count?: number;
     first_commit_at?: string | null;
     last_commit_at?: string | null;
@@ -83,6 +86,9 @@ async function getProjectData(
       `
       id,
       date_utc,
+      type,
+      content_text,
+      content_image_url,
       commit_count,
       first_commit_at,
       last_commit_at,
@@ -93,6 +99,7 @@ async function getProjectData(
     )
     .eq("project_id", projectId)
     .order("last_commit_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
 
   if (cursor) {
@@ -121,6 +128,9 @@ async function getProjectData(
       activity: {
         id: row.id as string | undefined,
         date_utc: row.date_utc as string | undefined,
+        type: row.type as string | undefined,
+        content_text: row.content_text as string | null | undefined,
+        content_image_url: row.content_image_url as string | null | undefined,
         commit_count: row.commit_count as number | undefined,
         first_commit_at: row.first_commit_at as string | null | undefined,
         last_commit_at: row.last_commit_at as string | null | undefined,
