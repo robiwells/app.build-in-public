@@ -17,7 +17,7 @@ export function ExpandableCommitList({ messages, className = "" }: ExpandableCom
   const hiddenCount = messages.length - VISIBLE_INITIAL;
 
   return (
-    <ul className={`space-y-0.5 text-sm text-zinc-600 dark:text-zinc-400 ${className}`}>
+    <ul className={`space-y-0.5 text-sm text-[#78716c] ${className}`}>
       {messages.slice(0, visible).map((msg, i) => (
         <li key={i} className="truncate">· {msg}</li>
       ))}
@@ -26,7 +26,7 @@ export function ExpandableCommitList({ messages, className = "" }: ExpandableCom
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="text-zinc-400 hover:text-zinc-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+            className="text-[#a8a29e] hover:text-[#78716c] hover:underline"
           >
             + {hiddenCount} more
           </button>
@@ -37,7 +37,7 @@ export function ExpandableCommitList({ messages, className = "" }: ExpandableCom
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="text-zinc-400 hover:text-zinc-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+            className="text-[#a8a29e] hover:text-[#78716c] hover:underline"
           >
             Show less
           </button>

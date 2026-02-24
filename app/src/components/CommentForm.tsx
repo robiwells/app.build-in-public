@@ -54,15 +54,15 @@ export function CommentForm({ postId }: CommentFormProps) {
         placeholder="Write a comment…"
         maxLength={1000}
         rows={3}
-        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+        className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14] placeholder-[#a8a29e] focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30"
       />
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-zinc-400">{body.length}/1000</span>
+        <span className="text-xs text-[#a8a29e]">{body.length}/1000</span>
         <button
           type="submit"
           disabled={submitting || !body.trim()}
-          className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded-lg bg-[#b5522a] px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:bg-[#9a4522] disabled:opacity-50"
         >
           {submitting ? "Posting…" : "Post"}
         </button>

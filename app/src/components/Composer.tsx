@@ -116,7 +116,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+      className="card mb-6 p-4"
     >
       <div className="mb-3 flex gap-1">
         <button
@@ -124,8 +124,8 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
           onClick={() => setPostType("manual")}
           className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
             postType === "manual"
-              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-              : "border border-zinc-300 text-zinc-600 hover:border-zinc-400 dark:border-zinc-600 dark:text-zinc-400"
+              ? "bg-[#b5522a] text-white"
+              : "border border-[#e8ddd0] text-[#78716c] hover:border-[#c9b99a]"
           }`}
           disabled={isLoading}
         >
@@ -136,8 +136,8 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
           onClick={() => setPostType("milestone")}
           className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
             postType === "milestone"
-              ? "bg-amber-500 text-white"
-              : "border border-zinc-300 text-zinc-600 hover:border-zinc-400 dark:border-zinc-600 dark:text-zinc-400"
+              ? "bg-amber-600 text-white"
+              : "border border-[#e8ddd0] text-[#78716c] hover:border-[#c9b99a]"
           }`}
           disabled={isLoading}
         >
@@ -153,7 +153,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
             : "What did you do for 5 minutes today?"
         }
         rows={3}
-        className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
+        className="w-full resize-none rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14] placeholder-[#a8a29e]"
         disabled={isLoading}
       />
 
@@ -176,7 +176,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
           <select
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
-            className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            className="rounded-lg border border-[#e8ddd0] bg-white px-2 py-1 text-sm text-[#2a1f14]"
             disabled={isLoading}
           >
             <option value="">No project</option>
@@ -188,7 +188,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
           </select>
         )}
 
-        <label className="cursor-pointer rounded-lg border border-zinc-300 px-2 py-1 text-sm text-zinc-600 hover:border-zinc-400 dark:border-zinc-600 dark:text-zinc-400">
+        <label className="cursor-pointer rounded-lg border border-[#e8ddd0] bg-white px-2 py-1 text-sm text-[#78716c] hover:border-[#c9b99a]">
           <input
             ref={fileRef}
             type="file"
@@ -203,14 +203,18 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
         <button
           type="submit"
           disabled={isLoading || !text.trim()}
-          className="ml-auto rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className={`ml-auto rounded-full px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
+            postType === "milestone"
+              ? "bg-amber-600 hover:bg-amber-700"
+              : "bg-[#b5522a] hover:bg-[#9a4522]"
+          }`}
         >
           {uploading ? "Uploading…" : submitting ? "Posting…" : postType === "milestone" ? "Share milestone" : "Post"}
         </button>
       </div>
 
       {timezone === "UTC" && (
-        <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+        <p className="mt-2 text-xs text-amber-600">
           Your timezone is set to UTC. Update it in{" "}
           <a href="/settings" className="underline">
             Settings
@@ -219,7 +223,7 @@ export function Composer({ userId, projects, timezone, onPosted }: ComposerProps
         </p>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </form>
   );
 }

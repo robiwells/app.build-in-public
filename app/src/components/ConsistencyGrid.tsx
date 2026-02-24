@@ -49,16 +49,14 @@ export function ConsistencyGrid({ activeDays, timezone = "UTC" }: ConsistencyGri
                 title={cell.date}
                 className={[
                   "h-3 w-3 rounded-sm",
-                  cell.active
-                    ? "bg-green-500 dark:bg-green-400"
-                    : "bg-zinc-200 dark:bg-zinc-700",
+                  cell.active ? "bg-emerald-600" : "bg-[#e8ddd0]",
                 ].join(" ")}
               />
             ))}
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+      <p className="mt-2 text-xs text-[#a8a29e]">
         {activeDays.length} active day{activeDays.length !== 1 ? "s" : ""} in the last 365 days
       </p>
     </div>

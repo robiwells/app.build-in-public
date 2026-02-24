@@ -145,9 +145,9 @@ async function getUserData(
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  Safe: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  "At Risk": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  Frozen: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  Safe: "bg-green-100 text-green-800",
+  "At Risk": "bg-amber-100 text-amber-800",
+  Frozen: "bg-blue-100 text-blue-800",
   New: "",
 };
 
@@ -189,12 +189,12 @@ export default async function UserPage({
             className="rounded-full"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-200 text-2xl font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f5f0e8] text-2xl font-medium text-[#78716c]">
             {(user?.username ?? "?")[0]?.toUpperCase() ?? "?"}
           </div>
         )}
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h1 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold text-[#2a1f14]">
             {user?.username ?? username}
           </h1>
           <ProfileBioEditor bio={user.bio} isOwner={isOwner} />
@@ -203,14 +203,14 @@ export default async function UserPage({
 
       {/* Streak summary */}
       {streakStatus !== "New" && (
-        <Link href={`/u/${username}/streaks`} className="block mb-8">
-          <div className="flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700 transition-colors">
+        <Link href={`/u/${username}/streaks`} className="mb-8 block">
+          <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:border-amber-300">
             <span className="text-2xl">🔥</span>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+              <span className="text-xl font-bold text-[#2a1f14]">
                 {currentStreak}
               </span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">day streak</span>
+              <span className="text-sm text-[#78716c]">day streak</span>
               {streakStatus !== "Safe" && (
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[streakStatus] ?? ""}`}>
                   {streakStatus}
@@ -228,23 +228,23 @@ export default async function UserPage({
         </section>
       ) : projects.length > 0 ? (
         <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="mb-3 font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#2a1f14]">
             Projects
           </h2>
           <div className="space-y-3">
             {projects.map((p) => (
               <Link key={p.id} href={`/u/${username}/projects/${p.slug?.trim() ? p.slug : p.id}`}>
-                <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                <div className="card rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]">
+                  <h3 className="font-semibold text-[#2a1f14]">
                     {p.title}
                   </h3>
                   {p.description && (
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    <p className="mt-1 text-sm text-[#78716c]">
                       {p.description}
                     </p>
                   )}
                   {p.url && (
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-1 text-sm text-[#a8a29e]">
                       {p.url}
                     </p>
                   )}
@@ -253,7 +253,7 @@ export default async function UserPage({
                       {p.project_repos.map((repo) => (
                         <p
                           key={repo.id}
-                          className="block rounded-lg bg-zinc-50 px-3 py-1.5 text-sm text-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300"
+                          className="block rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm text-[#78716c]"
                         >
                           {repo.repo_full_name}
                         </p>
@@ -270,17 +270,17 @@ export default async function UserPage({
       {/* Activity feed */}
       <section>
         <FeedRefresh />
-        <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">Activity</h2>
+        <h2 className="mb-3 font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#2a1f14]">Activity</h2>
         {feed.length === 0 ? (
-          <p className="text-zinc-600 dark:text-zinc-400">No activity yet.</p>
+          <p className="text-[#78716c]">No activity yet.</p>
         ) : (
           <>
             <div className="space-y-4">
               {groupFeedItems(feed).map((group) => (
-                <div key={group.key} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                <div key={group.key} className="card overflow-hidden rounded-xl">
                   {/* Group header — date only */}
-                  <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{formatGroupDate(group.date)}</span>
+                  <div className="border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
+                    <span className="text-sm font-medium text-[#78716c]">{formatGroupDate(group.date)}</span>
                   </div>
                   {/* Items — each shows its own project name */}
                   <div className="px-4">
@@ -317,7 +317,7 @@ export default async function UserPage({
               <div className="mt-6">
                 <Link
                   href={`/u/${username}?cursor=${encodeURIComponent(nextCursor)}`}
-                  className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
+                  className="text-sm font-medium text-[#78716c] hover:text-[#b5522a]"
                 >
                   Load more
                 </Link>

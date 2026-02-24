@@ -63,7 +63,7 @@ export function HeartButton({
       className={`flex items-center gap-1 text-sm transition-colors ${
         hearted
           ? "text-rose-500"
-          : "text-zinc-400 hover:text-rose-400"
+          : "text-[#a8a29e] hover:text-rose-400"
       } disabled:opacity-60`}
     >
       <span aria-hidden="true">{hearted ? "♥" : "♡"}</span>

@@ -30,7 +30,7 @@ export function UserMenu({ username, avatarUrl, profileHref }: UserMenuProps) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative h-8 w-8 overflow-hidden rounded-full ring-2 ring-transparent hover:ring-zinc-300 focus:outline-none focus:ring-zinc-400 dark:hover:ring-zinc-600 dark:focus:ring-zinc-500"
+        className="relative h-8 w-8 overflow-hidden rounded-full ring-2 ring-transparent hover:ring-[#c9b99a] focus:outline-none focus:ring-[#b5522a]"
         aria-label="Open user menu"
       >
         {avatarUrl ? (
@@ -40,7 +40,7 @@ export function UserMenu({ username, avatarUrl, profileHref }: UserMenuProps) {
             className="h-full w-full rounded-full object-cover"
           />
         ) : (
-          <span className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-sm font-semibold text-white">
+          <span className="flex h-full w-full items-center justify-center rounded-full bg-[#f5f0e8] text-sm font-semibold text-[#78716c]">
             {username[0].toUpperCase()}
           </span>
         )}
@@ -48,7 +48,7 @@ export function UserMenu({ username, avatarUrl, profileHref }: UserMenuProps) {
 
       <div
         className={[
-          "absolute right-0 top-full z-50 mt-2 w-48 origin-top-right rounded-xl border border-zinc-200 bg-white shadow-xl transition-all duration-150 dark:border-zinc-800 dark:bg-zinc-900",
+          "absolute right-0 top-full z-50 mt-2 w-48 origin-top-right rounded-xl border border-[#e8ddd0] bg-white shadow-lg transition-all duration-150",
           open
             ? "scale-100 opacity-100"
             : "pointer-events-none scale-95 opacity-0",
@@ -58,25 +58,25 @@ export function UserMenu({ username, avatarUrl, profileHref }: UserMenuProps) {
           <Link
             href={profileHref}
             onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="block px-4 py-2 text-sm text-[#2a1f14] hover:bg-[#f5f0e8]"
           >
             Profile
           </Link>
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="block px-4 py-2 text-sm text-[#2a1f14] hover:bg-[#f5f0e8]"
           >
             Settings
           </Link>
-          <div className="my-1 border-t border-zinc-200 dark:border-zinc-800" />
+          <div className="my-1 border-t border-[#e8ddd0]" />
           <button
             type="button"
             onClick={() => {
               setOpen(false);
               signOut({ callbackUrl: "/" });
             }}
-            className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="block w-full px-4 py-2 text-left text-sm text-[#2a1f14] hover:bg-[#f5f0e8]"
           >
             Sign out
           </button>

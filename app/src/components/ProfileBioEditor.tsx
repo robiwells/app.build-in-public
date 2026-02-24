@@ -47,7 +47,7 @@ export function ProfileBioEditor({
   if (!isOwner) {
     if (!bio) return null;
     return (
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{bio}</p>
+      <p className="mt-1 text-sm text-[#78716c]">{bio}</p>
     );
   }
 
@@ -59,20 +59,20 @@ export function ProfileBioEditor({
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Write a short bio…"
           rows={3}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+          className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
         />
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="rounded-full bg-[#b5522a] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#9a4522] disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
           </button>
           <button
             onClick={handleCancel}
-            className="rounded-full px-4 py-1.5 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="rounded-full px-4 py-1.5 text-sm text-[#78716c] hover:text-[#2a1f14]"
           >
             Cancel
           </button>
@@ -84,13 +84,13 @@ export function ProfileBioEditor({
   return (
     <div className="mt-1 flex items-center gap-2">
       {bio ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{bio}</p>
+        <p className="text-sm text-[#78716c]">{bio}</p>
       ) : (
-        <p className="text-sm text-zinc-400 dark:text-zinc-500">Add a bio…</p>
+        <p className="text-sm text-[#a8a29e]">Add a bio…</p>
       )}
       <button
         onClick={() => setEditing(true)}
-        className="rounded-lg px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        className="rounded-lg px-2 py-1 text-xs text-[#78716c] hover:bg-[#f5f0e8] hover:text-[#2a1f14]"
       >
         Edit
       </button>

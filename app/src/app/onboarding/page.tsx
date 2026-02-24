@@ -46,27 +46,27 @@ export default async function OnboardingPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+      <h1 className="mb-6 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
         Connect a repo to track
       </h1>
       {errorMessage && (
-        <p className="mb-4 text-sm text-amber-600 dark:text-amber-400">{errorMessage}</p>
+        <p className="mb-4 text-sm text-amber-600">{errorMessage}</p>
       )}
       {installAppUrl ? (
         <div>
           <a
             href={installAppUrl}
-            className="inline-block rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="inline-block rounded-full bg-[#b5522a] px-4 py-2 text-sm font-medium text-white hover:bg-[#9a4522]"
           >
             Connect with GitHub App
           </a>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-sm text-[#78716c]">
             Install the app on a repo to track commits automatically—no webhook setup.
           </p>
         </div>
       ) : (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Set <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-700">GITHUB_APP_SLUG</code> and other GitHub App env vars in <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-700">.env.local</code>. See <strong>DEPLOY.md</strong> (in the app directory) section 5.
+        <p className="text-sm text-[#78716c]">
+          Set <code className="rounded bg-[#f5f0e8] px-1">GITHUB_APP_SLUG</code> and other GitHub App env vars in <code className="rounded bg-[#f5f0e8] px-1">.env.local</code>. See <strong>DEPLOY.md</strong> (in the app directory) section 5.
         </p>
       )}
     </main>
