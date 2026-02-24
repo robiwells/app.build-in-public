@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { HeartButton } from "@/components/HeartButton";
 import { PostMenu } from "@/components/PostMenu";
+import { ExpandableCommitList } from "@/components/ExpandableCommitList";
 
 type ActivityItemProps = {
   user?: { username?: string; avatar_url?: string | null } | null;
@@ -203,14 +204,7 @@ export function ActivityItem({
                 )}
               </p>
               {messages.length > 0 && (
-                <ul className="mt-2 space-y-0.5 text-sm text-zinc-600 dark:text-zinc-400">
-                  {messages.slice(0, 3).map((msg, i) => (
-                    <li key={i} className="truncate">· {msg}</li>
-                  ))}
-                  {messages.length > 3 && (
-                    <li className="text-zinc-400 dark:text-zinc-500">+ {messages.length - 3} more</li>
-                  )}
-                </ul>
+                <ExpandableCommitList messages={messages} className="mt-2" />
               )}
             </>
           )}
