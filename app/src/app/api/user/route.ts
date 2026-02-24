@@ -29,7 +29,8 @@ export async function PATCH(request: Request) {
     .eq("id", user.userId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("PATCH /api/user error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
