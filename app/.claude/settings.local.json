@@ -9,7 +9,9 @@
       "Bash(cat:*)",
       "Bash(head:*)",
       "Bash(npx next:*)",
-      "Bash(cd /Users/robertwells/projects/robiwells/app.build-in-public && git add app/src/lib/activity.ts && git commit -m \"$\\(cat <<'EOF'\ndebug: log raw commit[0] to diagnose missing commit_messages\n\nTemporary log to inspect the GitHub push payload commit structure.\nRemove after root cause confirmed.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nEOF\n\\)\" && git push 2>&1)"
+      "Bash(cd /Users/robertwells/projects/robiwells/app.build-in-public && git add app/src/lib/activity.ts && git commit -m \"$\\(cat <<'EOF'\ndebug: log raw commit[0] to diagnose missing commit_messages\n\nTemporary log to inspect the GitHub push payload commit structure.\nRemove after root cause confirmed.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nEOF\n\\)\" && git push 2>&1)",
+      "Bash(cd /Users/robertwells/projects/robiwells/app.build-in-public/.worktrees/milestone-post-type/app && npm run lint 2>&12)",
+      "Bash(cd /Users/robertwells/projects/robiwells/app.build-in-public/.worktrees/milestone-post-type/app && npm run lint 2>&1)"
     ]
   }
 }

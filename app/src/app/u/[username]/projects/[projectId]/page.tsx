@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 import { ActivityItem } from "@/components/ActivityItem";
 
 export const revalidate = 30;
@@ -169,11 +170,14 @@ export default async function ProjectPage({
 }) {
   const { username, projectId: slugOrId } = await params;
   const { cursor } = await searchParams;
+  const session = await auth();
+  const sessionUser = session?.user as { userId?: string } | undefined;
   const data = await getProjectData(username, slugOrId, cursor);
 
   if (!data) notFound();
 
   const { user, project, feed, nextCursor } = data;
+  const isOwner = sessionUser?.userId === user.id;
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
@@ -237,6 +241,7 @@ export default async function ProjectPage({
                   repo={item.repo}
                   activity={item.activity}
                   showUser={false}
+                  canDelete={isOwner}
                 />
               ))}
             </div>

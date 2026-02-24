@@ -202,6 +202,8 @@ export default async function PostDetailPage({
             activity={activity}
             showUser={false}
             showProject={false}
+            canDelete={sessionUserId === (r.user_id as string)}
+            deleteRedirectHref={user ? `/u/${user.username}` : "/"}
           />
         </div>
 

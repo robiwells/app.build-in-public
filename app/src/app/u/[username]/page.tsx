@@ -305,6 +305,7 @@ export default async function UserPage({
                           hearted={item.activity.hearted}
                           currentUserId={sessionUser?.userId ?? null}
                           postHref={postHref}
+                          canDelete={isOwner}
                         />
                       );
                     })}

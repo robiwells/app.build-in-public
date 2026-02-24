@@ -41,12 +41,14 @@ function paginateRows(
 function mapRow(
   row: Record<string, unknown>,
   heartedSet: Set<string>,
-  includeUser: boolean
+  includeUser: boolean,
+  activityUserId?: string
 ): FeedItem {
   const users = row.users as Record<string, unknown> | null;
   const projects = row.projects as Record<string, unknown> | null;
   const projectRepos = row.project_repos as Record<string, unknown> | null;
   const id = row.id as string | undefined;
+  const userId = activityUserId ?? (row.user_id as string | undefined);
 
   const item: FeedItem = {
     project: projects
@@ -64,6 +66,7 @@ function mapRow(
       : null,
     activity: {
       id,
+      user_id: userId,
       date_utc: row.date_utc as string | undefined,
       type: row.type as string | undefined,
       content_text: row.content_text as string | null | undefined,
@@ -139,6 +142,7 @@ export async function queryFeed(opts: FeedQueryOpts): Promise<{
   };
 }
 
+
 export async function queryUserFeed(
   userId: string,
   opts: FeedQueryOpts
@@ -186,7 +190,7 @@ export async function queryUserFeed(
     : new Set<string>();
 
   return {
-    feed: items.map((row) => mapRow(row, heartedSet, false)),
+    feed: items.map((row) => mapRow(row, heartedSet, false, userId)),
     nextCursor,
     dbError: null,
   };

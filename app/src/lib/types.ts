@@ -4,6 +4,7 @@ export type FeedItem = {
   repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
     id?: string;
+    user_id?: string;
     date_utc?: string;
     type?: string;
     content_text?: string | null;

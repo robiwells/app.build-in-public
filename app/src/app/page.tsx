@@ -197,6 +197,7 @@ export default async function HomePage({
                           hearted={item.activity.hearted}
                           currentUserId={sessionUser?.userId ?? null}
                           postHref={postHref}
+                          canDelete={!!(item.activity.id && sessionUser?.userId && item.activity.user_id === sessionUser.userId)}
                         />
                       );
                     })}

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { HeartButton } from "@/components/HeartButton";
+import { PostMenu } from "@/components/PostMenu";
 
 type ActivityItemProps = {
   user?: { username?: string; avatar_url?: string | null } | null;
@@ -26,6 +27,10 @@ type ActivityItemProps = {
   hearted?: boolean;
   currentUserId?: string | null;
   postHref?: string;
+  /** Show 3-dot menu with delete when true (only for post owner). */
+  canDelete?: boolean;
+  /** After delete, navigate here (e.g. on post detail page). Otherwise refresh. */
+  deleteRedirectHref?: string;
 };
 
 function formatDate(dateUtc: string | undefined): string {
@@ -71,6 +76,8 @@ export function ActivityItem({
   hearted,
   currentUserId,
   postHref,
+  canDelete,
+  deleteRedirectHref,
 }: ActivityItemProps) {
   const isManual = activity.type === "manual";
   const isMilestone = activity.type === "milestone";
@@ -80,6 +87,7 @@ export function ActivityItem({
   const projectTitle = project?.title;
   const timeRange = formatTimeRange(activity.first_commit_at, activity.last_commit_at);
   const messages = activity.commit_messages ?? [];
+  const showMenu = canDelete && activity.id;
 
   return (
     <article className={`border-b py-4 last:border-0 ${isMilestone ? "border-amber-200 dark:border-amber-900" : "border-zinc-200 dark:border-zinc-800"}`}>
@@ -104,7 +112,8 @@ export function ActivityItem({
           </Link>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-zinc-900 dark:text-zinc-100">
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 text-zinc-900 dark:text-zinc-100">
             {showUser && user && (
               <>
                 <Link href={`/u/${user.username}`} className="font-medium hover:underline">
@@ -124,7 +133,11 @@ export function ActivityItem({
             ) : !isManual ? (
               <span className="font-medium">{repoName}</span>
             ) : null)}
-          </p>
+            </p>
+            {showMenu && (
+              <PostMenu postId={activity.id!} redirectHref={deleteRedirectHref} />
+            )}
+          </div>
 
           {isMilestone ? (
             <>
