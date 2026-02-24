@@ -17,6 +17,12 @@ export async function Header() {
           Build in Public
         </Link>
         <nav className="flex items-center gap-4">
+          <Link
+            href="/projects"
+            className="text-sm font-medium text-[#78716c] hover:text-[#2a1f14]"
+          >
+            Projects
+          </Link>
           {session && user?.username ? (
             <UserMenu
               username={user.username}
