@@ -18,7 +18,7 @@ export async function PATCH(
 
   const { id } = await params;
 
-  let body: { title?: string; description?: string | null; url?: string | null };
+  let body: { title?: string; description?: string | null; url?: string | null; category?: string | null };
   try {
     body = await request.json();
   } catch {
@@ -33,6 +33,7 @@ export async function PATCH(
     title: body.title?.trim(),
     description: body.description !== undefined ? (body.description?.trim() || null) : undefined,
     url: body.url !== undefined ? (body.url?.trim() || null) : undefined,
+    category: body.category !== undefined ? body.category : undefined,
   });
 
   if (error) {

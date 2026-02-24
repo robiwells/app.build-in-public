@@ -4,12 +4,14 @@ export interface CreateProjectParams {
   title: string;
   description?: string | null;
   url?: string | null;
+  category?: string | null;
 }
 
 export interface UpdateProjectParams {
   title?: string;
   description?: string | null;
   url?: string | null;
+  category?: string | null;
 }
 
 export interface AddRepoParams {
@@ -30,6 +32,7 @@ export async function createProject(
       title: params.title,
       description: params.description ?? null,
       url: params.url ?? null,
+      category: params.category ?? null,
     })
     .select("id")
     .single();
@@ -52,6 +55,7 @@ export async function updateProject(
   if (params.title !== undefined) updates.title = params.title;
   if (params.description !== undefined) updates.description = params.description;
   if (params.url !== undefined) updates.url = params.url;
+  if (params.category !== undefined) updates.category = params.category;
 
   const { error } = await supabase
     .from("projects")

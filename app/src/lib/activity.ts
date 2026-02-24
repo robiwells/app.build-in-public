@@ -1,4 +1,5 @@
 import { createSupabaseAdmin } from "@/lib/supabase";
+import { incrementStreakAtomic } from "@/lib/streak";
 
 type PushPayload = {
   repository?: { full_name?: string; html_url?: string };
@@ -44,6 +45,15 @@ function groupCommitsByUtcDate(
   return map;
 }
 
+function getLocalDateForTimestamp(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 export async function processPushEvent(payload: unknown, deliveryId?: string): Promise<void> {
   const body = payload as PushPayload;
   const repoFullName = body.repository?.full_name;
@@ -71,6 +81,14 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
 
   if (!projectRepo) return;
 
+  // Fetch user timezone
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("timezone")
+    .eq("id", projectRepo.user_id)
+    .maybeSingle();
+  const timezone = userRow?.timezone ?? "UTC";
+
   const commits = body.commits ?? [];
   const commitEntries = parseCommits(commits);
   if (commitEntries.length === 0) return;
@@ -83,6 +101,8 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
 
   for (const [dateUtc, { first, last, count, messages: newMessages }] of byDate) {
     const githubLink = commitEntries.length === 1 ? (lastCommit?.url ?? compareUrl) : compareUrl;
+    // Compute date_local based on the push timestamp (use first commit time for this UTC date)
+    const dateLocal = getLocalDateForTimestamp(first, timezone);
 
     const { data: existing, error: readError } = await supabase
       .from("activities")
@@ -90,6 +110,7 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
       .eq("user_id", projectRepo.user_id)
       .eq("project_id", projectRepo.project_id)
       .eq("date_utc", dateUtc)
+      .eq("type", "auto_github")
       .maybeSingle();
 
     if (readError) {
@@ -111,6 +132,8 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
         project_id: projectRepo.project_id,
         project_repo_id: projectRepo.id,
         date_utc: dateUtc,
+        type: "auto_github",
+        date_local: dateLocal,
         commit_count: commitCount,
         first_commit_at: firstCommitAt.toISOString(),
         last_commit_at: lastCommitAt.toISOString(),
@@ -123,6 +146,10 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
 
     if (upsertError) {
       console.error("[activity] upsert failed", { error: upsertError, repo: repoFullName, date: dateUtc, deliveryId });
+      continue;
     }
+
+    // Update streak atomically
+    await incrementStreakAtomic(projectRepo.user_id, dateLocal);
   }
 }

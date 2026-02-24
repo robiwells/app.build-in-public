@@ -15,6 +15,7 @@ type Project = {
   title: string;
   description: string | null;
   url: string | null;
+  category: string | null;
   project_repos: Repo[];
 };
 
