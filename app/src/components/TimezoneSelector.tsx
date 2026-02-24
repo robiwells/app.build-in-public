@@ -112,7 +112,7 @@ export function TimezoneSelector({ currentTimezone }: TimezoneSelectorProps) {
         value={selected}
         onChange={(e) => handleChange(e.target.value)}
         disabled={saving}
-        className="w-full max-w-sm rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+        className="w-full max-w-sm rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
       >
         {tzOptions.map(({ value, label }) => (
           <option key={value} value={value}>
@@ -121,13 +121,13 @@ export function TimezoneSelector({ currentTimezone }: TimezoneSelectorProps) {
         ))}
       </select>
       {localTime && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-[#78716c]">
           Current local time: <span className="font-medium">{localTime}</span>
         </p>
       )}
-      {saving && <p className="text-sm text-zinc-500 dark:text-zinc-400">Saving…</p>}
-      {saved && <p className="text-sm text-green-600 dark:text-green-400">Saved</p>}
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {saving && <p className="text-sm text-[#78716c]">Saving…</p>}
+      {saved && <p className="text-sm text-green-600">Saved</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }

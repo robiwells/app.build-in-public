@@ -20,7 +20,7 @@ export function SignInModal() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="rounded-full bg-[#b5522a] px-4 py-2 text-sm font-medium text-white hover:bg-[#9a4522]"
       >
         Sign in with GitHub
       </button>
@@ -31,13 +31,13 @@ export function SignInModal() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="relative w-[380px] rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900"
+            className="relative w-[380px] rounded-2xl border border-[#e8ddd0] bg-white p-8 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="absolute right-4 top-4 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+              className="absolute right-4 top-4 text-[#a8a29e] hover:text-[#78716c]"
               aria-label="Close"
             >
               <svg
@@ -55,13 +55,13 @@ export function SignInModal() {
             </button>
 
             <div className="mb-6 text-center">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              <p className="font-[family-name:var(--font-fraunces)] text-xs font-semibold uppercase tracking-widest text-[#a8a29e]">
                 Build in Public
               </p>
-              <h2 className="mt-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h2 className="mt-2 font-[family-name:var(--font-fraunces)] text-xl font-bold text-[#2a1f14]">
                 Sign in to get started
               </h2>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-sm text-[#78716c]">
                 Track your public commits on GitHub
               </p>
             </div>
@@ -69,7 +69,7 @@ export function SignInModal() {
             <button
               type="button"
               onClick={() => signIn("github", { callbackUrl: "/onboarding" })}
-              className="flex w-full items-center justify-center gap-3 rounded-full bg-zinc-900 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="flex w-full items-center justify-center gap-3 rounded-full bg-[#b5522a] px-4 py-3 text-sm font-medium text-white hover:bg-[#9a4522]"
             >
               <svg
                 width="18"

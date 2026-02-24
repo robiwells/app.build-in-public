@@ -26,7 +26,7 @@ export function DeleteCommentButton({ commentId }: DeleteCommentButtonProps) {
     <button
       onClick={handleDelete}
       disabled={deleting}
-      className="text-xs text-zinc-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+      className="text-xs text-[#a8a29e] transition-colors hover:text-red-500 disabled:opacity-50"
     >
       {deleting ? "Deleting…" : "Delete"}
     </button>

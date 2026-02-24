@@ -91,7 +91,7 @@ export function ActivityItem({
   const showMenu = canDelete && activity.id;
 
   return (
-    <article className={`border-b py-4 last:border-0 ${isMilestone ? "border-amber-200 dark:border-amber-900" : "border-zinc-200 dark:border-zinc-800"}`}>
+    <article className={`border-b py-4 last:border-0 ${isMilestone ? "border-amber-300" : "border-[#e8ddd0]"}`}>
       <div className="flex items-start gap-3">
         {showUser && user?.avatar_url && (
           <Link href={`/u/${user.username}`} className="shrink-0">
@@ -107,17 +107,17 @@ export function ActivityItem({
         {showUser && user && !user.avatar_url && (
           <Link
             href={`/u/${user.username}`}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-sm font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5f0e8] text-sm font-medium text-[#78716c]"
           >
             {(user.username ?? "?")[0].toUpperCase()}
           </Link>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="min-w-0 text-zinc-900 dark:text-zinc-100">
+            <p className="min-w-0 text-[#2a1f14]">
             {showUser && user && (
               <>
-                <Link href={`/u/${user.username}`} className="font-medium hover:underline">
+                <Link href={`/u/${user.username}`} className="font-medium hover:text-[#b5522a]">
                   {user.username}
                 </Link>
                 {" · "}
@@ -125,7 +125,7 @@ export function ActivityItem({
             )}
             {showProject && (projectTitle ? (
               projectHref ? (
-                <Link href={projectHref} className="font-medium hover:underline">
+                <Link href={projectHref} className="font-medium hover:text-[#b5522a]">
                   {projectTitle}
                 </Link>
               ) : (
@@ -144,10 +144,10 @@ export function ActivityItem({
             <>
               <div className="mt-1 flex items-center gap-1.5">
                 <span className="text-base">🚀</span>
-                <span className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Milestone</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">Milestone</span>
               </div>
               {activity.content_text && (
-                <p className="mt-1 whitespace-pre-wrap text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                <p className="mt-1 whitespace-pre-wrap text-base font-semibold text-[#2a1f14]">
                   {activity.content_text}
                 </p>
               )}
@@ -159,7 +159,7 @@ export function ActivityItem({
                   className="mt-2 max-w-sm rounded-lg"
                 />
               )}
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-sm text-[#a8a29e]">
                 {formatDate(activity.date_utc)}
                 {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
               </p>
@@ -167,7 +167,7 @@ export function ActivityItem({
           ) : isManual ? (
             <>
               {activity.content_text && (
-                <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200">
+                <p className="mt-1 whitespace-pre-wrap text-sm text-[#2a1f14]">
                   {activity.content_text}
                 </p>
               )}
@@ -179,18 +179,18 @@ export function ActivityItem({
                   className="mt-2 max-w-sm rounded-lg"
                 />
               )}
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-sm text-[#a8a29e]">
                 {formatDate(activity.date_utc)}
                 {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
               </p>
             </>
           ) : (
             <>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-sm text-[#a8a29e]">
                 {count} commit{count !== 1 ? "s" : ""}
                 {repo?.repo_full_name && (
                   <> to{" "}
-                    <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="text-[#b5522a] hover:underline">
                       {repo.repo_full_name}
                     </a>
                   </>
@@ -200,7 +200,7 @@ export function ActivityItem({
                 {timeRange && <> · {timeRange}</>}
                 {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
                 {activity.github_link && (
-                  <> · <a href={activity.github_link} target="_blank" rel="noopener noreferrer" className="hover:underline">View on GitHub</a></>
+                  <> · <a href={activity.github_link} target="_blank" rel="noopener noreferrer" className="text-[#b5522a] hover:underline">View on GitHub</a></>
                 )}
               </p>
               {messages.length > 0 && (
@@ -209,14 +209,14 @@ export function ActivityItem({
             </>
           )}
           {postHref && activity.id && (
-            <div className="mt-2 flex items-center gap-4 text-sm text-zinc-500">
+            <div className="mt-2 flex items-center gap-4 text-sm text-[#a8a29e]">
               <HeartButton
                 postId={activity.id}
                 initialCount={heartCount ?? 0}
                 initialHearted={hearted ?? false}
                 currentUserId={currentUserId ?? null}
               />
-              <Link href={postHref} className="hover:underline">
+              <Link href={postHref} className="hover:text-[#b5522a]">
                 {commentCount ?? 0} comment{commentCount !== 1 ? "s" : ""}
               </Link>
             </div>

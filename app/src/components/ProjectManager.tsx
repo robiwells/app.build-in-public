@@ -41,7 +41,7 @@ export function ProjectManager({ username }: { username?: string } = {}) {
 
   if (loading) {
     return (
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-sm text-[#78716c]">
         Loading projects…
       </p>
     );
@@ -50,13 +50,13 @@ export function ProjectManager({ username }: { username?: string } = {}) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#2a1f14]">
           Projects
         </h2>
         <ProjectForm onCreated={load} />
       </div>
       {projects.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-[#78716c]">
           No projects yet. Create one to start tracking your work.
         </p>
       ) : (

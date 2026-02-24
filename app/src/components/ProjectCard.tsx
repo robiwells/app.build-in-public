@@ -145,14 +145,14 @@ export function ProjectCard({
 
   if (editing) {
     return (
-      <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+      <div className="card rounded-xl p-4">
         <div className="space-y-3">
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Project title"
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
             required
           />
           <textarea
@@ -160,19 +160,19 @@ export function ProjectCard({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Short description (optional)"
             rows={2}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
           />
           <input
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Project URL (optional)"
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
           />
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
           >
             <option value="">Category (optional)</option>
             {CATEGORIES.map((c) => (
@@ -181,37 +181,37 @@ export function ProjectCard({
           </select>
           {/* Repo multi-select when editing */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="block text-sm font-medium text-[#2a1f14]">
               Repositories
             </label>
-            <p className="mb-2 text-xs text-zinc-400 dark:text-zinc-500">
+            <p className="mb-2 text-xs text-[#a8a29e]">
               Select which repos to track under this project.
             </p>
             {reposLoading ? (
-              <p className="rounded-lg border border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+              <p className="rounded-lg border border-[#e8ddd0] p-3 text-sm text-[#78716c]">
                 Loading repos…
               </p>
             ) : availableRepos.length === 0 ? (
-              <p className="rounded-lg border border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+              <p className="rounded-lg border border-[#e8ddd0] p-3 text-sm text-[#78716c]">
                 No repos available. Connect a repo via Settings → GitHub.
               </p>
             ) : (
-              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-700">
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[#e8ddd0] p-2">
                 {availableRepos.map((r) => (
                   <label
                     key={r.full_name}
                     className={[
                       "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                       selectedRepos.has(r.full_name)
-                        ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                        : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/50",
+                        ? "bg-[#f5f0e8] text-[#2a1f14]"
+                        : "text-[#78716c] hover:bg-[#faf7f2]",
                     ].join(" ")}
                   >
                     <input
                       type="checkbox"
                       checked={selectedRepos.has(r.full_name)}
                       onChange={() => toggleRepo(r.full_name)}
-                      className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-700"
+                      className="h-4 w-4 rounded border-[#e8ddd0] text-[#b5522a] focus:ring-[#b5522a]/30"
                     />
                     <span className="truncate">{r.full_name}</span>
                   </label>
@@ -219,17 +219,17 @@ export function ProjectCard({
               </div>
             )}
             {selectedRepos.size > 0 && (
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-xs text-[#78716c]">
                 {selectedRepos.size} repo{selectedRepos.size !== 1 ? "s" : ""} selected
               </p>
             )}
           </div>
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button
               onClick={handleSave}
               disabled={saving || !title.trim()}
-              className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="rounded-full bg-[#b5522a] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#9a4522] disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -241,7 +241,7 @@ export function ProjectCard({
                 setUrl(project.url ?? "");
                 setCategory(project.category ?? "");
               }}
-              className="rounded-full px-4 py-1.5 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              className="rounded-full px-4 py-1.5 text-sm text-[#78716c] hover:text-[#2a1f14]"
             >
               Cancel
             </button>
@@ -252,13 +252,13 @@ export function ProjectCard({
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+    <div className="card rounded-xl p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            <h3 className="font-semibold text-[#2a1f14]">
               {projectHref ? (
-                <Link href={projectHref} className="hover:underline">
+                <Link href={projectHref} className="hover:text-[#b5522a]">
                   {project.title}
                 </Link>
               ) : (
@@ -266,13 +266,13 @@ export function ProjectCard({
               )}
             </h3>
             {project.category && (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="rounded-full bg-[#f5f0e8] px-2 py-0.5 text-xs font-medium text-[#78716c]">
                 {project.category}
               </span>
             )}
           </div>
           {project.description && (
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-sm text-[#78716c]">
               {project.description}
             </p>
           )}
@@ -281,7 +281,7 @@ export function ProjectCard({
               href={project.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 inline-block text-sm text-zinc-500 hover:underline dark:text-zinc-400"
+              className="mt-1 inline-block text-sm text-[#b5522a] hover:underline"
             >
               {project.url}
             </a>
@@ -291,14 +291,14 @@ export function ProjectCard({
           <div className="flex shrink-0 gap-1">
             <button
               onClick={() => setEditing(true)}
-              className="rounded-lg px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="rounded-lg px-2 py-1 text-xs text-[#78716c] hover:bg-[#f5f0e8] hover:text-[#2a1f14]"
             >
               Edit
             </button>
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="rounded-lg px-2 py-1 text-xs text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:text-zinc-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+              className="rounded-lg px-2 py-1 text-xs text-[#78716c] hover:bg-red-50 hover:text-red-600"
             >
               {deleting ? "…" : "Delete"}
             </button>
@@ -311,20 +311,20 @@ export function ProjectCard({
           {project.project_repos.map((repo) => (
             <div
               key={repo.id}
-              className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-1.5 text-sm dark:bg-zinc-800/50"
+              className="flex items-center justify-between rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm"
             >
               <a
                 href={repo.repo_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="truncate text-zinc-700 hover:underline dark:text-zinc-300"
+                className="truncate text-[#78716c] hover:underline"
               >
                 {repo.repo_full_name}
               </a>
               {editable && (
                 <button
                   onClick={() => handleRemoveRepo(repo.id)}
-                  className="ml-2 shrink-0 text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+                  className="ml-2 shrink-0 text-xs text-[#a8a29e] hover:text-red-500"
                 >
                   Remove
                 </button>
@@ -334,11 +334,11 @@ export function ProjectCard({
         </div>
       )}
       {project.project_repos.length === 0 && (
-        <p className="mt-3 text-sm text-zinc-400 dark:text-zinc-500">
+        <p className="mt-3 text-sm text-[#a8a29e]">
           No repos tracked yet
         </p>
       )}
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
 }

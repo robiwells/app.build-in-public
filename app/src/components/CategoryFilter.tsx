@@ -25,8 +25,8 @@ export function CategoryFilter({ selectedCategory }: CategoryFilterProps) {
             href={href}
             className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
               isActive
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                : "border border-zinc-300 text-zinc-600 hover:border-zinc-400 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-zinc-200"
+                ? "bg-[#b5522a] text-white"
+                : "border border-[#e8ddd0] text-[#78716c] hover:border-[#c9b99a]"
             }`}
           >
             {cat}

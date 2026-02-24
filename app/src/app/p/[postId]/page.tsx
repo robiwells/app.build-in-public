@@ -141,16 +141,16 @@ export default async function PostDetailPage({
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
       <div className="mb-4">
-        <Link href="/" className="text-sm text-zinc-500 hover:underline dark:text-zinc-400">
+        <Link href="/" className="text-sm text-[#78716c] hover:text-[#b5522a]">
           ← Back to feed
         </Link>
       </div>
 
       {/* Post card */}
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+      <div className="card overflow-hidden rounded-xl">
         {/* Header */}
-        <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between gap-2 border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
             {user?.avatar_url ? (
               <Link href={`/u/${user.username}`} className="shrink-0">
                 <Image
@@ -164,27 +164,27 @@ export default async function PostDetailPage({
             ) : user ? (
               <Link
                 href={`/u/${user.username}`}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f5f0e8] text-xs font-medium text-[#78716c]"
               >
                 {(user.username)[0].toUpperCase()}
               </Link>
             ) : null}
             {user && (
-              <Link href={`/u/${user.username}`} className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:underline truncate">
+              <Link href={`/u/${user.username}`} className="truncate text-sm font-medium text-[#2a1f14] hover:text-[#b5522a]">
                 {user.username}
               </Link>
             )}
             {project && (
               <>
-                <span className="text-zinc-400 dark:text-zinc-600 text-sm">·</span>
+                <span className="text-sm text-[#a8a29e]">·</span>
                 <Link
                   href={user && project ? `/u/${user.username}/projects/${project.slug?.trim() ? project.slug : project.id}` : "#"}
-                  className="text-sm text-zinc-500 dark:text-zinc-400 hover:underline truncate"
+                  className="truncate text-sm text-[#78716c] hover:text-[#b5522a]"
                 >
                   {project.title}
                 </Link>
                 {project.category && (
-                  <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                  <span className="rounded-full border border-[#e8ddd0] px-2 py-0.5 text-xs text-[#78716c]">
                     {project.category}
                   </span>
                 )}
@@ -208,34 +208,34 @@ export default async function PostDetailPage({
         </div>
 
         {/* Hearts + comment count */}
-        <div className="px-4 pb-4 flex items-center gap-4">
+        <div className="flex items-center gap-4 px-4 pb-4">
           <HeartButton
             postId={postId}
             initialCount={heartCount}
             initialHearted={hearted}
             currentUserId={sessionUserId}
           />
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-[#a8a29e]">
             {comments.length} comment{comments.length !== 1 ? "s" : ""}
           </span>
         </div>
 
         {/* Hearts list */}
         {heartUsers.length > 0 && (
-          <div className="px-4 pb-3 text-xs text-zinc-500 dark:text-zinc-400">
-            Liked by <span className="font-medium text-zinc-700 dark:text-zinc-300">{formatHeartsList(heartUsers)}</span>
+          <div className="px-4 pb-3 text-xs text-[#a8a29e]">
+            Liked by <span className="font-medium text-[#78716c]">{formatHeartsList(heartUsers)}</span>
           </div>
         )}
       </div>
 
       {/* Comments */}
       <section className="mt-6">
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-4 font-[family-name:var(--font-fraunces)] text-base font-semibold text-[#2a1f14]">
           Comments
         </h2>
 
         {comments.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">No comments yet.</p>
+          <p className="text-sm text-[#a8a29e]">No comments yet.</p>
         ) : (
           <div className="space-y-4">
             {comments.map((comment) => (
@@ -253,26 +253,26 @@ export default async function PostDetailPage({
                 ) : comment.user ? (
                   <Link
                     href={`/u/${comment.user.username}`}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f5f0e8] text-xs font-medium text-[#78716c]"
                   >
                     {comment.user.username[0].toUpperCase()}
                   </Link>
                 ) : (
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-[#f5f0e8]" />
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
                     {comment.user && (
-                      <Link href={`/u/${comment.user.username}`} className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:underline">
+                      <Link href={`/u/${comment.user.username}`} className="text-sm font-medium text-[#2a1f14] hover:text-[#b5522a]">
                         {comment.user.username}
                       </Link>
                     )}
-                    <span className="text-xs text-zinc-400">{formatRelative(comment.created_at)}</span>
+                    <span className="text-xs text-[#a8a29e]">{formatRelative(comment.created_at)}</span>
                     {sessionUserId && comment.user_id === sessionUserId && (
                       <DeleteCommentButton commentId={comment.id} />
                     )}
                   </div>
-                  <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                  <p className="mt-0.5 whitespace-pre-wrap text-sm text-[#2a1f14]">
                     {comment.body}
                   </p>
                 </div>
@@ -282,14 +282,14 @@ export default async function PostDetailPage({
         )}
 
         {/* Comment form */}
-        <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+        <div className="mt-6 border-t border-[#e8ddd0] pt-4">
           {sessionUserId ? (
             <CommentForm postId={postId} />
           ) : (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-sm text-[#78716c]">
               <Link
                 href={`/api/auth/signin?callbackUrl=${encodeURIComponent(`/p/${postId}`)}`}
-                className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+                className="font-medium text-[#b5522a] hover:underline"
               >
                 Sign in
               </Link>{" "}

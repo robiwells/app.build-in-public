@@ -105,7 +105,7 @@ export default async function HomePage({
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
       <FeedRefresh />
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+      <h1 className="mb-6 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
         Activity feed
       </h1>
 
@@ -120,7 +120,7 @@ export default async function HomePage({
       <CategoryFilter selectedCategory={category} />
 
       {feed.length === 0 ? (
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="text-[#78716c]">
           It&apos;s quiet... too quiet.
         </p>
       ) : (
@@ -133,44 +133,44 @@ export default async function HomePage({
                       ? `/u/${group.user.username}/projects/${group.project.slug?.trim() ? group.project.slug : group.project.id}`
                       : undefined;
               return (
-                <div key={group.key} className={`rounded-xl border overflow-hidden ${group.items.some(i => i.activity.type === "milestone") ? "border-amber-400 dark:border-amber-500" : "border-zinc-200 dark:border-zinc-800"}`}>
+                <div key={group.key} className={`feed-item overflow-hidden rounded-xl bg-white ${group.items.some(i => i.activity.type === "milestone") ? "border border-amber-300 shadow-[0_1px_3px_rgba(120,80,40,0.10)]" : "card"}`}>
                   {/* Group header */}
-                  <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center justify-between gap-2 border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
+                    <div className="flex min-w-0 items-center gap-2">
                       {group.user?.avatar_url ? (
                         <Image
                           src={group.user.avatar_url}
                           alt={group.user.username}
                           width={24}
                           height={24}
-                          className="rounded-full shrink-0"
+                          className="shrink-0 rounded-full"
                         />
                       ) : (
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e8ddd0] text-xs font-medium text-[#78716c]">
                           {(group.user?.username ?? "?")[0].toUpperCase()}
                         </div>
                       )}
                       {profileHref ? (
-                        <Link href={profileHref} className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:underline truncate">
+                        <Link href={profileHref} className="truncate text-sm font-medium text-[#2a1f14] hover:text-[#b5522a]">
                           {group.user?.username}
                         </Link>
                       ) : (
-                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{group.user?.username}</span>
+                        <span className="truncate text-sm font-medium text-[#2a1f14]">{group.user?.username}</span>
                       )}
                       {group.project?.title && (
                         <>
-                          <span className="text-zinc-400 dark:text-zinc-600 text-sm">·</span>
+                          <span className="text-sm text-[#a8a29e]">·</span>
                           {groupProjectHref ? (
-                            <Link href={groupProjectHref} className="text-sm text-zinc-500 dark:text-zinc-400 hover:underline truncate">
+                            <Link href={groupProjectHref} className="truncate text-sm text-[#78716c] hover:text-[#b5522a]">
                               {group.project.title}
                             </Link>
                           ) : (
-                            <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{group.project.title}</span>
+                            <span className="truncate text-sm text-[#78716c]">{group.project.title}</span>
                           )}
                         </>
                       )}
                     </div>
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500 shrink-0">{formatGroupDate(group.date)}</span>
+                    <span className="shrink-0 text-xs text-[#a8a29e]">{formatGroupDate(group.date)}</span>
                   </div>
                   {/* Items */}
                   <div className="px-4">
@@ -210,7 +210,7 @@ export default async function HomePage({
             <div className="mt-6">
               <Link
                 href={`/?cursor=${encodeURIComponent(nextCursor)}${category ? `&category=${encodeURIComponent(category)}` : ""}`}
-                className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
+                className="text-sm font-medium text-[#78716c] hover:text-[#b5522a]"
               >
                 Load more
               </Link>

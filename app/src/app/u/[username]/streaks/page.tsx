@@ -21,9 +21,9 @@ function parseMetadata(raw: Json | null): StreakMetadata {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  Safe: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  "At Risk": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  Frozen: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  Safe: "bg-green-100 text-green-800",
+  "At Risk": "bg-amber-100 text-amber-800",
+  Frozen: "bg-blue-100 text-blue-800",
   New: "",
 };
 
@@ -79,30 +79,30 @@ export default async function StreaksDashboard({
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
       <Link
         href={`/u/${username}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-[#78716c] hover:text-[#b5522a]"
       >
         ← Back to profile
       </Link>
 
-      <header className="mt-4 mb-8">
+      <header className="mb-8 mt-4">
         {status === "New" ? (
-          <p className="text-zinc-500 dark:text-zinc-400">No activity yet — make your first post to start a streak!</p>
+          <p className="text-[#78716c]">No activity yet — make your first post to start a streak!</p>
         ) : (
           <div className="flex items-center gap-3">
             <span className="text-4xl">🔥</span>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                <span className="text-3xl font-bold text-[#2a1f14]">
                   {currentStreak}
                 </span>
-                <span className="text-zinc-500 dark:text-zinc-400">day streak</span>
+                <span className="text-[#78716c]">day streak</span>
                 {status !== "Safe" && (
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status] ?? ""}`}>
                     {status}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-sm text-[#78716c]">
                 Longest: {longestStreak} day{longestStreak !== 1 ? "s" : ""}
               </p>
             </div>
@@ -111,7 +111,7 @@ export default async function StreaksDashboard({
       </header>
 
       <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-4 font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#2a1f14]">
           365-day consistency
         </h2>
         <ConsistencyGrid activeDays={activeDays} timezone={user.timezone} />
@@ -119,7 +119,7 @@ export default async function StreaksDashboard({
 
       {isOwner && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="mb-3 font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#2a1f14]">
             Streak protection
           </h2>
           <FreezeControl frozen={user.streak_frozen} resetImminent={resetImminentFlag} />

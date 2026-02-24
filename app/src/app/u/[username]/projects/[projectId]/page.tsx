@@ -183,17 +183,17 @@ export default async function ProjectPage({
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
       <Link
         href={`/u/${user.username}`}
-        className="text-sm font-medium text-zinc-500 hover:underline dark:text-zinc-400"
+        className="text-sm font-medium text-[#78716c] hover:text-[#b5522a]"
       >
         ← {user.username}
       </Link>
 
       <header className="my-6">
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+        <h1 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
           {project.title}
         </h1>
         {project.description && (
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-[#78716c]">
             {project.description}
           </p>
         )}
@@ -202,7 +202,7 @@ export default async function ProjectPage({
             href={project.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 inline-block text-sm text-zinc-500 hover:underline dark:text-zinc-400"
+            className="mt-1 inline-block text-sm text-[#b5522a] hover:underline"
           >
             {project.url}
           </a>
@@ -215,7 +215,7 @@ export default async function ProjectPage({
                 href={r.repo_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700 hover:underline dark:bg-zinc-800 dark:text-zinc-300"
+                className="rounded-full bg-[#f5f0e8] px-3 py-1 text-sm text-[#78716c] hover:underline"
               >
                 {r.repo_full_name}
               </a>
@@ -225,11 +225,11 @@ export default async function ProjectPage({
       </header>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-3 font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#2a1f14]">
           Activity
         </h2>
         {feed.length === 0 ? (
-          <p className="text-zinc-600 dark:text-zinc-400">No activity yet.</p>
+          <p className="text-[#78716c]">No activity yet.</p>
         ) : (
           <>
             <div className="space-y-0">
@@ -249,7 +249,7 @@ export default async function ProjectPage({
               <div className="mt-6">
                 <Link
                   href={`/u/${username}/projects/${projectSegment(project)}?cursor=${encodeURIComponent(nextCursor)}`}
-                  className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
+                  className="text-sm font-medium text-[#78716c] hover:text-[#b5522a]"
                 >
                   Load more
                 </Link>

@@ -45,10 +45,10 @@ export default async function OnboardingGitHubAppPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+      <h1 className="mb-6 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
         GitHub connected
       </h1>
-      <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="mb-4 text-sm text-[#78716c]">
         Optionally add repos to a project to track commits on your activity feed. You can skip and add repos later from Settings.
       </p>
       <RepoPicker
