@@ -23,30 +23,52 @@ export async function GET(
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  const category = searchParams.get("category");
+
   let query = supabase
     .from("activities")
     .select(
       `
       id,
       date_utc,
+      type,
+      content_text,
+      content_image_url,
       commit_count,
       first_commit_at,
       last_commit_at,
       github_link,
       commit_messages,
+      hearts_count,
+      comments_count,
       project_id,
       project_repo_id,
-      projects!inner(id, title, active),
+      projects(id, title, active, category),
       project_repos(repo_full_name, repo_url)
     `
     )
     .eq("user_id", user.id)
-    .eq("projects.active", true)
     .order("last_commit_at", { ascending: false })
     .limit(limit + 1);
 
   if (cursor) {
     query = query.lt("last_commit_at", cursor);
+  }
+
+  if (category) {
+    const { data: catProjects } = await supabase
+      .from("projects")
+      .select("id")
+      .ilike("category", category);
+    const projectIds = (catProjects ?? []).map((p: { id: string }) => p.id);
+    if (projectIds.length === 0) {
+      return NextResponse.json({
+        user: { username: user.username, avatar_url: user.avatar_url },
+        feed: [],
+        nextCursor: null,
+      });
+    }
+    query = query.in("project_id", projectIds);
   }
 
   const { data: rows, error } = await query;
@@ -75,11 +97,16 @@ export async function GET(
       activity: {
         id: row.id,
         date_utc: row.date_utc,
+        type: row.type,
+        content_text: row.content_text,
+        content_image_url: row.content_image_url,
         commit_count: row.commit_count,
         first_commit_at: row.first_commit_at,
         last_commit_at: row.last_commit_at,
         github_link: row.github_link,
         commit_messages: row.commit_messages,
+        hearts_count: row.hearts_count,
+        comments_count: row.comments_count,
       },
     };
   });
