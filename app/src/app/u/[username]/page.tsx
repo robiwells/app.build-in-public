@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { ActivityItem } from "@/components/ActivityItem";
+import { FeedRefresh } from "@/components/FeedRefresh";
 import { ProjectManager } from "@/components/ProjectManager";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 import { computeStreakStatus } from "@/lib/streak";
@@ -357,6 +358,7 @@ export default async function UserPage({
 
       {/* Activity feed */}
       <section>
+        <FeedRefresh />
         <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">Activity</h2>
         {feed.length === 0 ? (
           <p className="text-zinc-600 dark:text-zinc-400">No activity yet.</p>
