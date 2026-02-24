@@ -1,11 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
+import { HeartButton } from "@/components/HeartButton";
 
 type ActivityItemProps = {
   user?: { username?: string; avatar_url?: string | null } | null;
   project?: { title?: string } | null;
   repo?: { repo_full_name?: string; repo_url?: string } | null;
   activity: {
+    id?: string;
     date_utc?: string;
     type?: string;
     content_text?: string | null;
@@ -19,6 +21,11 @@ type ActivityItemProps = {
   showUser?: boolean;
   showProject?: boolean;
   projectHref?: string;
+  heartCount?: number;
+  commentCount?: number;
+  hearted?: boolean;
+  currentUserId?: string | null;
+  postHref?: string;
 };
 
 function formatDate(dateUtc: string | undefined): string {
@@ -59,6 +66,11 @@ export function ActivityItem({
   showUser = true,
   showProject = true,
   projectHref,
+  heartCount,
+  commentCount,
+  hearted,
+  currentUserId,
+  postHref,
 }: ActivityItemProps) {
   const isManual = activity.type === "manual";
   const count = activity.commit_count ?? 0;
@@ -163,6 +175,19 @@ export function ActivityItem({
                 </ul>
               )}
             </>
+          )}
+          {postHref && activity.id && (
+            <div className="mt-2 flex items-center gap-4 text-sm text-zinc-500">
+              <HeartButton
+                postId={activity.id}
+                initialCount={heartCount ?? 0}
+                initialHearted={hearted ?? false}
+                currentUserId={currentUserId ?? null}
+              />
+              <Link href={postHref} className="hover:underline">
+                {commentCount ?? 0} comment{commentCount !== 1 ? "s" : ""}
+              </Link>
+            </div>
           )}
         </div>
       </div>

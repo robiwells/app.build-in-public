@@ -4,6 +4,7 @@ import { createSupabaseAdmin } from "@/lib/supabase";
 import { ActivityItem } from "@/components/ActivityItem";
 import { Composer } from "@/components/Composer";
 import { FeedRefresh } from "@/components/FeedRefresh";
+import { CategoryFilter } from "@/components/CategoryFilter";
 import { auth } from "@/lib/auth";
 
 export const revalidate = 30;
@@ -23,6 +24,9 @@ type FeedItem = {
     last_commit_at?: string | null;
     github_link?: string | null;
     commit_messages?: string[] | null;
+    hearts_count?: number;
+    comments_count?: number;
+    hearted?: boolean;
   };
 };
 
@@ -79,7 +83,11 @@ function formatGroupDate(dateUtc: string): string {
   return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor: string | null }> {
+async function getFeed(
+  cursor?: string,
+  category?: string,
+  userId?: string
+): Promise<{ feed: FeedItem[]; nextCursor: string | null }> {
   const supabase = createSupabaseAdmin();
   const limit = 20;
 
@@ -97,11 +105,13 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
       last_commit_at,
       github_link,
       commit_messages,
+      hearts_count,
+      comments_count,
       user_id,
       project_id,
       project_repo_id,
       users!inner(id, username, avatar_url),
-      projects(id, title, active),
+      projects(id, title, active, category),
       project_repos(repo_full_name, repo_url)
     `
     )
@@ -111,6 +121,17 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
 
   if (cursor) {
     query = query.lt("last_commit_at", cursor);
+  }
+
+  // Category filtering: fetch matching project IDs first
+  if (category) {
+    const { data: catProjects } = await supabase
+      .from("projects")
+      .select("id")
+      .ilike("category", category);
+    const projectIds = (catProjects ?? []).map((p: { id: string }) => p.id);
+    if (projectIds.length === 0) return { feed: [], nextCursor: null };
+    query = query.in("project_id", projectIds);
   }
 
   const { data: rows, error } = await query;
@@ -124,10 +145,23 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
       ? (items[items.length - 1] as { last_commit_at?: string | null }).last_commit_at ?? null
       : null;
 
+  // Build hearted set for the session user
+  let heartedSet = new Set<string>();
+  if (userId && items.length > 0) {
+    const activityIds = items.map((r: Record<string, unknown>) => r.id as string).filter(Boolean);
+    const { data: heartRows } = await supabase
+      .from("hearts")
+      .select("post_id")
+      .eq("user_id", userId)
+      .in("post_id", activityIds);
+    heartedSet = new Set((heartRows ?? []).map((h: { post_id: string }) => h.post_id));
+  }
+
   const feed = items.map((row: Record<string, unknown>) => {
     const users = row.users as Record<string, unknown> | null;
     const projects = row.projects as Record<string, unknown> | null;
     const projectRepos = row.project_repos as Record<string, unknown> | null;
+    const id = row.id as string | undefined;
     return {
       user: users
         ? { username: users.username as string, avatar_url: users.avatar_url as string | null }
@@ -139,7 +173,7 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
         ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
         : null,
       activity: {
-        id: row.id as string | undefined,
+        id,
         date_utc: row.date_utc as string | undefined,
         type: row.type as string | undefined,
         content_text: row.content_text as string | null | undefined,
@@ -149,6 +183,9 @@ async function getFeed(cursor?: string): Promise<{ feed: FeedItem[]; nextCursor:
         last_commit_at: row.last_commit_at as string | null | undefined,
         github_link: row.github_link as string | null | undefined,
         commit_messages: row.commit_messages as string[] | null | undefined,
+        hearts_count: row.hearts_count as number | undefined,
+        comments_count: row.comments_count as number | undefined,
+        hearted: id ? heartedSet.has(id) : false,
       },
     };
   });
@@ -176,12 +213,15 @@ async function getSessionUserData(userId: string): Promise<{
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string }>;
+  searchParams: Promise<{ cursor?: string; category?: string }>;
 }) {
-  const { cursor } = await searchParams;
-  const [{ feed, nextCursor }, session] = await Promise.all([getFeed(cursor), auth()]);
-
+  const { cursor, category } = await searchParams;
+  const session = await auth();
   const sessionUser = session?.user as { userId?: string } | undefined;
+  const [{ feed, nextCursor }] = await Promise.all([
+    getFeed(cursor, category, sessionUser?.userId),
+  ]);
+
   const sessionUserData = sessionUser?.userId
     ? await getSessionUserData(sessionUser.userId)
     : null;
@@ -200,6 +240,8 @@ export default async function HomePage({
           timezone={sessionUserData.timezone}
         />
       )}
+
+      <CategoryFilter selectedCategory={category} />
 
       {feed.length === 0 ? (
         <p className="text-zinc-600 dark:text-zinc-400">
@@ -261,6 +303,9 @@ export default async function HomePage({
                         item.user?.username && item.project?.id
                           ? `/u/${item.user.username}/projects/${item.project.id}`
                           : undefined;
+                      const postHref = item.activity.id
+                        ? `/p/${item.activity.id}`
+                        : undefined;
                       return (
                         <ActivityItem
                           key={item.activity.id ?? item.activity.date_utc}
@@ -271,6 +316,11 @@ export default async function HomePage({
                           showUser={false}
                           showProject={false}
                           projectHref={projectHref}
+                          heartCount={item.activity.hearts_count}
+                          commentCount={item.activity.comments_count}
+                          hearted={item.activity.hearted}
+                          currentUserId={sessionUser?.userId ?? null}
+                          postHref={postHref}
                         />
                       );
                     })}
@@ -282,7 +332,7 @@ export default async function HomePage({
           {nextCursor && (
             <div className="mt-6">
               <Link
-                href={`/?cursor=${encodeURIComponent(nextCursor)}`}
+                href={`/?cursor=${encodeURIComponent(nextCursor)}${category ? `&category=${encodeURIComponent(category)}` : ""}`}
                 className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
               >
                 Load more

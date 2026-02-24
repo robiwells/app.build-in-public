@@ -40,6 +40,9 @@ type FeedItem = {
     last_commit_at?: string | null;
     github_link?: string | null;
     commit_messages?: string[] | null;
+    hearts_count?: number;
+    comments_count?: number;
+    hearted?: boolean;
   };
 };
 
@@ -101,7 +104,8 @@ function parseMetadata(raw: Json | null): StreakMetadata {
 
 async function getUserData(
   username: string,
-  cursor?: string
+  cursor?: string,
+  sessionUserId?: string
 ): Promise<{
   user: {
     id: string;
@@ -168,6 +172,8 @@ async function getUserData(
       last_commit_at,
       github_link,
       commit_messages,
+      hearts_count,
+      comments_count,
       project_id,
       project_repo_id,
       projects(id, title, active),
@@ -201,16 +207,29 @@ async function getUserData(
       ? (items[items.length - 1] as { last_commit_at?: string | null }).last_commit_at ?? null
       : null;
 
+  // Build hearted set for session user
+  let heartedSet = new Set<string>();
+  if (sessionUserId && items.length > 0) {
+    const activityIds = items.map((r: Record<string, unknown>) => r.id as string).filter(Boolean);
+    const { data: heartRows } = await supabase
+      .from("hearts")
+      .select("post_id")
+      .eq("user_id", sessionUserId)
+      .in("post_id", activityIds);
+    heartedSet = new Set((heartRows ?? []).map((h: { post_id: string }) => h.post_id));
+  }
+
   const feed = items.map((row: Record<string, unknown>) => {
     const proj = row.projects as Record<string, unknown> | null;
     const projectRepos = row.project_repos as Record<string, unknown> | null;
+    const id = row.id as string | undefined;
     return {
       project: proj ? { title: proj.title as string, id: proj.id as string } : null,
       repo: projectRepos
         ? { repo_full_name: projectRepos.repo_full_name as string, repo_url: projectRepos.repo_url as string }
         : null,
       activity: {
-        id: row.id as string | undefined,
+        id,
         date_utc: row.date_utc as string | undefined,
         type: row.type as string | undefined,
         content_text: row.content_text as string | null | undefined,
@@ -220,6 +239,9 @@ async function getUserData(
         last_commit_at: row.last_commit_at as string | null | undefined,
         github_link: row.github_link as string | null | undefined,
         commit_messages: row.commit_messages as string[] | null | undefined,
+        hearts_count: row.hearts_count as number | undefined,
+        comments_count: row.comments_count as number | undefined,
+        hearted: id ? heartedSet.has(id) : false,
       },
     };
   });
@@ -248,14 +270,13 @@ export default async function UserPage({
 }) {
   const { username } = await params;
   const { cursor } = await searchParams;
-  const data = await getUserData(username, cursor);
+  const session = await auth();
+  const sessionUser = session?.user as { userId?: string } | undefined;
+  const data = await getUserData(username, cursor, sessionUser?.userId);
 
   if (!data) notFound();
 
   const { user, projects, feed, nextCursor } = data;
-
-  const session = await auth();
-  const sessionUser = session?.user as { userId?: string } | undefined;
   const isOwner = sessionUser?.userId === user.id;
 
   const meta = parseMetadata(user.streak_metadata);
@@ -377,6 +398,9 @@ export default async function UserPage({
                       const projectHref = item.project?.id
                         ? `/u/${username}/projects/${item.project.id}`
                         : undefined;
+                      const postHref = item.activity.id
+                        ? `/p/${item.activity.id}`
+                        : undefined;
                       return (
                         <ActivityItem
                           key={item.activity.id ?? item.activity.date_utc}
@@ -386,6 +410,11 @@ export default async function UserPage({
                           activity={item.activity}
                           showUser={false}
                           projectHref={projectHref}
+                          heartCount={item.activity.hearts_count}
+                          commentCount={item.activity.comments_count}
+                          hearted={item.activity.hearted}
+                          currentUserId={sessionUser?.userId ?? null}
+                          postHref={postHref}
                         />
                       );
                     })}

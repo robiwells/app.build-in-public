@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Number(searchParams.get("limit")) || 20, 100);
   const cursor = searchParams.get("cursor");
+  const category = searchParams.get("category");
 
   const supabase = createSupabaseAdmin();
 
@@ -14,25 +15,41 @@ export async function GET(request: Request) {
       `
       id,
       date_utc,
+      type,
+      content_text,
+      content_image_url,
       commit_count,
       first_commit_at,
       last_commit_at,
       github_link,
       commit_messages,
+      hearts_count,
+      comments_count,
       user_id,
       project_id,
       project_repo_id,
       users!inner(id, username, avatar_url),
-      projects!inner(id, title, active),
+      projects(id, title, active, category),
       project_repos(repo_full_name, repo_url)
     `
     )
-    .eq("projects.active", true)
     .order("last_commit_at", { ascending: false })
     .limit(limit + 1);
 
   if (cursor) {
     query = query.lt("last_commit_at", cursor);
+  }
+
+  if (category) {
+    const { data: catProjects } = await supabase
+      .from("projects")
+      .select("id")
+      .ilike("category", category);
+    const projectIds = (catProjects ?? []).map((p: { id: string }) => p.id);
+    if (projectIds.length === 0) {
+      return NextResponse.json({ feed: [], nextCursor: null });
+    }
+    query = query.in("project_id", projectIds);
   }
 
   const { data: rows, error } = await query;
@@ -64,11 +81,16 @@ export async function GET(request: Request) {
       activity: {
         id: row.id,
         date_utc: row.date_utc,
+        type: row.type,
+        content_text: row.content_text,
+        content_image_url: row.content_image_url,
         commit_count: row.commit_count,
         first_commit_at: row.first_commit_at,
         last_commit_at: row.last_commit_at,
         github_link: row.github_link,
         commit_messages: row.commit_messages,
+        hearts_count: row.hearts_count,
+        comments_count: row.comments_count,
       },
     };
   });

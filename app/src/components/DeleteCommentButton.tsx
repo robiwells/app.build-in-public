@@ -1,0 +1,34 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+type DeleteCommentButtonProps = {
+  commentId: string;
+};
+
+export function DeleteCommentButton({ commentId }: DeleteCommentButtonProps) {
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+
+  async function handleDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/comments/${commentId}`, { method: "DELETE" });
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleDelete}
+      disabled={deleting}
+      className="text-xs text-zinc-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+    >
+      {deleting ? "Deleting…" : "Delete"}
+    </button>
+  );
+}

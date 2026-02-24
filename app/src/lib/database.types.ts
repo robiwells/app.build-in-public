@@ -153,6 +153,8 @@ export interface Database {
           last_commit_at: string | null;
           github_link: string | null;
           commit_messages: string[] | null;
+          hearts_count: number;
+          comments_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -171,6 +173,8 @@ export interface Database {
           last_commit_at?: string | null;
           github_link?: string | null;
           commit_messages?: string[] | null;
+          hearts_count?: number;
+          comments_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -189,6 +193,8 @@ export interface Database {
           last_commit_at?: string | null;
           github_link?: string | null;
           commit_messages?: string[] | null;
+          hearts_count?: number;
+          comments_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -212,6 +218,84 @@ export interface Database {
             columns: ["project_repo_id"];
             isOneToOne: false;
             referencedRelation: "project_repos";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      hearts: {
+        Row: {
+          id: string;
+          user_id: string;
+          post_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          post_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          post_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hearts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "hearts_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "activities";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          body: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          body: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          user_id?: string;
+          body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "comments_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "activities";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comments_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
             referencedColumns: ["id"];
           }
         ];
