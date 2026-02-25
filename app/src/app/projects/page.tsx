@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { CATEGORIES } from "@/lib/constants";
+import { levelProgressPct } from "@/lib/xp";
 
 export const revalidate = 60;
 
@@ -14,7 +15,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
   let query = supabase
     .from("projects")
     .select(`
-      id, title, description, url, slug, category, level, created_at,
+      id, title, description, url, slug, category, xp, level, created_at,
       users(id, username),
       activities(created_at)
     `)
@@ -101,7 +102,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                      Lv.{project.level ?? 1}
+                      Level {project.level ?? 1}
                     </span>
                     {project.category && (
                       <span className="rounded-full bg-[#f5f0e8] px-2 py-0.5 text-xs font-medium text-[#78716c]">
@@ -154,6 +155,12 @@ export default async function ProjectsPage({ searchParams }: Props) {
                       </>
                     )}
                   </div>
+                </div>
+                <div className="mt-3 overflow-hidden rounded-full bg-[#e8ddd0]" style={{ height: "6px" }}>
+                  <div
+                    className="h-full rounded-full bg-amber-400"
+                    style={{ width: `${levelProgressPct((project.xp as number) ?? 0, project.level ?? 1)}%` }}
+                  />
                 </div>
               </div>
             );

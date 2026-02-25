@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CATEGORIES } from "@/lib/constants";
+import { levelProgressPct } from "@/lib/xp";
 
 type Repo = {
   id: string;
@@ -17,6 +18,7 @@ type Project = {
   url: string | null;
   slug: string | null;
   category: string | null;
+  xp: number;
   level: number;
   project_repos: Repo[];
 };
@@ -267,7 +269,7 @@ export function ProjectCard({
               )}
             </h3>
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-              Lv.{project.level}
+              Level {project.level}
             </span>
             {project.category && (
               <span className="rounded-full bg-[#f5f0e8] px-2 py-0.5 text-xs font-medium text-[#78716c]">
@@ -343,6 +345,12 @@ export function ProjectCard({
         </p>
       )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <div className="mt-3 overflow-hidden rounded-full bg-[#e8ddd0]" style={{ height: "6px" }}>
+        <div
+          className="h-full rounded-full bg-amber-400"
+          style={{ width: `${levelProgressPct(project.xp, project.level)}%` }}
+        />
+      </div>
     </div>
   );
 }

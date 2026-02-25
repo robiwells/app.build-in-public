@@ -8,6 +8,7 @@ import { FeedRefresh } from "@/components/FeedRefresh";
 import { ProjectManager } from "@/components/ProjectManager";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 import { computeStreakStatus, computeStreak } from "@/lib/streak";
+import { levelProgressPct } from "@/lib/xp";
 import { queryUserFeed } from "@/lib/feed";
 import type { FeedItem, StreakMetadata } from "@/lib/types";
 import type { Json } from "@/lib/database.types";
@@ -26,6 +27,7 @@ type ProjectSummary = {
   description: string | null;
   url: string | null;
   slug: string | null;
+  xp: number;
   level: number;
   project_repos: Repo[];
 };
@@ -127,6 +129,7 @@ async function getUserData(
       description,
       url,
       slug,
+      xp,
       level,
       project_repos!left(id, repo_full_name, repo_url, active)
     `
@@ -242,7 +245,7 @@ export default async function UserPage({
                       {p.title}
                     </h3>
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                      Lv.{p.level}
+                      Level {p.level}
                     </span>
                   </div>
                   {p.description && (
@@ -267,6 +270,12 @@ export default async function UserPage({
                       ))}
                     </div>
                   )}
+                  <div className="mt-3 overflow-hidden rounded-full bg-[#e8ddd0]" style={{ height: "6px" }}>
+                    <div
+                      className="h-full rounded-full bg-amber-400"
+                      style={{ width: `${levelProgressPct(p.xp, p.level)}%` }}
+                    />
+                  </div>
                 </div>
               </Link>
             ))}

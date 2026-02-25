@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { ActivityItem } from "@/components/ActivityItem";
+import { levelProgressPct, xpInCurrentLevel, xpToNextLevel } from "@/lib/xp";
 
 export const revalidate = 30;
 
@@ -201,31 +202,23 @@ export default async function ProjectPage({
         <h1 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
           {project.title}
         </h1>
-        {(() => {
-          const xpForLevel = 5 * (project.level - 1) * project.level;
-          const xpForNext  = 5 * project.level * (project.level + 1);
-          const xpInLevel  = project.xp - xpForLevel;
-          const xpNeeded   = xpForNext - xpForLevel;
-          const pct        = Math.min(100, Math.round((xpInLevel / xpNeeded) * 100));
-          return (
-            <div className="mt-2 flex items-center gap-3">
-              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
-                Level {project.level}
-              </span>
-              <div className="flex flex-1 items-center gap-2">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8ddd0]">
-                  <div
-                    className="h-full rounded-full bg-amber-400 transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <span className="shrink-0 text-xs text-[#a8a29e]">
-                  {xpInLevel}/{xpNeeded} XP
-                </span>
-              </div>
+        <div className="mt-2 flex items-center gap-3">
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
+            Level {project.level}
+          </span>
+          <div className="flex flex-1 items-center gap-2">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8ddd0]">
+              <div
+                className="h-full rounded-full bg-amber-400 transition-all"
+                style={{ width: `${levelProgressPct(project.xp, project.level)}%` }}
+              />
             </div>
-          );
-        })()}
+            <span className="shrink-0 text-xs text-[#a8a29e]">
+              {xpInCurrentLevel(project.xp, project.level)}/{xpToNextLevel(project.level)} XP
+            </span>
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-[#a8a29e]">{project.xp} XP total</p>
         {project.description && (
           <p className="mt-1 text-sm text-[#78716c]">
             {project.description}
