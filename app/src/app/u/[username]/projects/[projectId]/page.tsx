@@ -199,24 +199,24 @@ export default async function ProjectPage({
       </Link>
 
       <header className="mt-6 mb-0 pb-8 border-b border-[#e8ddd0]">
-        <h1 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
-          {project.title}
-        </h1>
-        <div className="mt-3 flex items-center gap-3">
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
+        <div className="flex items-center gap-3">
+          <h1 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
+            {project.title}
+          </h1>
+          <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
             Level {project.level}
           </span>
-          <div className="flex w-48 items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8ddd0]">
-              <div
-                className="h-full rounded-full bg-amber-400 transition-all"
-                style={{ width: `${levelProgressPct(project.xp, project.level)}%` }}
-              />
-            </div>
-            <span className="shrink-0 text-xs text-[#a8a29e]">
-              {xpInCurrentLevel(project.xp, project.level)}/{xpToNextLevel(project.level)} XP
-            </span>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#e8ddd0]">
+            <div
+              className="h-full rounded-full bg-amber-400 transition-all"
+              style={{ width: `${levelProgressPct(project.xp, project.level)}%` }}
+            />
           </div>
+          <span className="shrink-0 text-xs text-[#a8a29e]">
+            {xpInCurrentLevel(project.xp, project.level)}/{xpToNextLevel(project.level)} XP
+          </span>
         </div>
         {project.description && (
           <p className="mt-4 text-sm text-[#78716c]">
