@@ -82,6 +82,7 @@ export function ActivityItem({
 }: ActivityItemProps) {
   const isManual = activity.type === "manual";
   const isMilestone = activity.type === "milestone";
+  const dateAsHeader = !showUser && !showProject;
   const count = activity.commit_count ?? 0;
   const repoName = repo?.repo_full_name ?? "repo";
   const repoUrl = repo?.repo_url ?? "#";
@@ -134,6 +135,9 @@ export function ActivityItem({
             ) : !isManual ? (
               <span className="font-medium">{repoName}</span>
             ) : null)}
+            {dateAsHeader && (
+              <span className="font-medium">{formatDate(activity.date_utc)}</span>
+            )}
             </p>
             {showMenu && (
               <PostMenu postId={activity.id!} redirectHref={deleteRedirectHref} />
@@ -160,8 +164,8 @@ export function ActivityItem({
                 />
               )}
               <p className="mt-1 text-sm text-[#a8a29e]">
-                {formatDate(activity.date_utc)}
-                {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
+                {!dateAsHeader && formatDate(activity.date_utc)}
+                {activity.last_commit_at && <>{!dateAsHeader && " · "}{formatRelative(activity.last_commit_at)}</>}
               </p>
             </>
           ) : isManual ? (
@@ -180,8 +184,8 @@ export function ActivityItem({
                 />
               )}
               <p className="mt-1 text-sm text-[#a8a29e]">
-                {formatDate(activity.date_utc)}
-                {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
+                {!dateAsHeader && formatDate(activity.date_utc)}
+                {activity.last_commit_at && <>{!dateAsHeader && " · "}{formatRelative(activity.last_commit_at)}</>}
               </p>
             </>
           ) : (
@@ -195,8 +199,7 @@ export function ActivityItem({
                     </a>
                   </>
                 )}
-                {" · "}
-                {formatDate(activity.date_utc)}
+                {!dateAsHeader && <> · {formatDate(activity.date_utc)}</>}
                 {timeRange && <> · {timeRange}</>}
                 {activity.last_commit_at && <> · {formatRelative(activity.last_commit_at)}</>}
                 {activity.github_link && (
