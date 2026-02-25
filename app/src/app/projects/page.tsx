@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { CATEGORIES } from "@/lib/constants";
-import { levelProgressPct } from "@/lib/xp";
 
 export const revalidate = 60;
 
@@ -155,12 +154,6 @@ export default async function ProjectsPage({ searchParams }: Props) {
                       </>
                     )}
                   </div>
-                </div>
-                <div className="mt-3 overflow-hidden rounded-full bg-[#e8ddd0]" style={{ height: "6px" }}>
-                  <div
-                    className="h-full rounded-full bg-amber-400"
-                    style={{ width: `${levelProgressPct((project.xp as number) ?? 0, project.level ?? 1)}%` }}
-                  />
                 </div>
               </div>
             );

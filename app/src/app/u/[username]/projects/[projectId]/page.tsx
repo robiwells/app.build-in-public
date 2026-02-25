@@ -202,11 +202,11 @@ export default async function ProjectPage({
         <h1 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
           {project.title}
         </h1>
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-3 flex items-center gap-3">
           <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
             Level {project.level}
           </span>
-          <div className="flex flex-1 items-center gap-2">
+          <div className="flex w-48 items-center gap-2">
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8ddd0]">
               <div
                 className="h-full rounded-full bg-amber-400 transition-all"
@@ -218,9 +218,9 @@ export default async function ProjectPage({
             </span>
           </div>
         </div>
-        <p className="mt-1 text-xs text-[#a8a29e]">{project.xp} XP total</p>
+        <p className="mt-2 text-xs text-[#a8a29e]">{project.xp} XP total</p>
         {project.description && (
-          <p className="mt-1 text-sm text-[#78716c]">
+          <p className="mt-3 text-sm text-[#78716c]">
             {project.description}
           </p>
         )}
@@ -229,7 +229,7 @@ export default async function ProjectPage({
             href={project.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 inline-block text-sm text-[#b5522a] hover:underline"
+            className="mt-2 inline-block text-sm text-[#b5522a] hover:underline"
           >
             {project.url}
           </a>

@@ -255,7 +255,7 @@ export function ProjectCard({
   }
 
   return (
-    <div className="card rounded-xl p-4">
+    <div className="card rounded-xl p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -278,7 +278,7 @@ export function ProjectCard({
             )}
           </div>
           {project.description && (
-            <p className="mt-1 text-sm text-[#78716c]">
+            <p className="mt-2 text-sm text-[#78716c]">
               {project.description}
             </p>
           )}
@@ -287,7 +287,7 @@ export function ProjectCard({
               href={project.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 inline-block text-sm text-[#b5522a] hover:underline"
+              className="mt-2 inline-block text-sm text-[#b5522a] hover:underline"
             >
               {project.url}
             </a>
@@ -345,12 +345,6 @@ export function ProjectCard({
         </p>
       )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      <div className="mt-3 overflow-hidden rounded-full bg-[#e8ddd0]" style={{ height: "6px" }}>
-        <div
-          className="h-full rounded-full bg-amber-400"
-          style={{ width: `${levelProgressPct(project.xp, project.level)}%` }}
-        />
-      </div>
     </div>
   );
 }
