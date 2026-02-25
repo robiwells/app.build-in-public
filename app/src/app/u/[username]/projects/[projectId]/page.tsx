@@ -18,6 +18,8 @@ type Project = {
   description: string | null;
   url: string | null;
   slug: string | null;
+  xp: number;
+  level: number;
   project_repos: ProjectRepo[];
 };
 
@@ -75,6 +77,8 @@ async function getProjectData(
       description,
       url,
       slug,
+      xp,
+      level,
       project_repos!left(id, repo_full_name, repo_url, active)
     `
     )
@@ -150,7 +154,12 @@ async function getProjectData(
 
   return {
     user,
-    project: { ...project, slug: project.slug ?? null } as Project,
+    project: {
+      ...project,
+      slug: project.slug ?? null,
+      xp: (project as unknown as { xp?: number }).xp ?? 0,
+      level: (project as unknown as { level?: number }).level ?? 1,
+    } as Project,
     feed,
     nextCursor,
   };
@@ -192,6 +201,31 @@ export default async function ProjectPage({
         <h1 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
           {project.title}
         </h1>
+        {(() => {
+          const xpForLevel = 5 * (project.level - 1) * project.level;
+          const xpForNext  = 5 * project.level * (project.level + 1);
+          const xpInLevel  = project.xp - xpForLevel;
+          const xpNeeded   = xpForNext - xpForLevel;
+          const pct        = Math.min(100, Math.round((xpInLevel / xpNeeded) * 100));
+          return (
+            <div className="mt-2 flex items-center gap-3">
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
+                Level {project.level}
+              </span>
+              <div className="flex flex-1 items-center gap-2">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8ddd0]">
+                  <div
+                    className="h-full rounded-full bg-amber-400 transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="shrink-0 text-xs text-[#a8a29e]">
+                  {xpInLevel}/{xpNeeded} XP
+                </span>
+              </div>
+            </div>
+          );
+        })()}
         {project.description && (
           <p className="mt-1 text-sm text-[#78716c]">
             {project.description}

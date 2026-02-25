@@ -17,6 +17,7 @@ type Project = {
   url: string | null;
   slug: string | null;
   category: string | null;
+  level: number;
   project_repos: Repo[];
 };
 
@@ -265,6 +266,9 @@ export function ProjectCard({
                 project.title
               )}
             </h3>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+              Lv.{project.level}
+            </span>
             {project.category && (
               <span className="rounded-full bg-[#f5f0e8] px-2 py-0.5 text-xs font-medium text-[#78716c]">
                 {project.category}
