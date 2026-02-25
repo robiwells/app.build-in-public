@@ -52,6 +52,8 @@ export interface Database {
           slug: string | null;
           active: boolean;
           category: string | null;
+          xp: number;
+          level: number;
           created_at: string;
           updated_at: string;
         };
@@ -64,6 +66,8 @@ export interface Database {
           slug?: string | null;
           active?: boolean;
           category?: string | null;
+          xp?: number;
+          level?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -76,6 +80,8 @@ export interface Database {
           slug?: string | null;
           active?: boolean;
           category?: string | null;
+          xp?: number;
+          level?: number;
           created_at?: string;
           updated_at?: string;
         };

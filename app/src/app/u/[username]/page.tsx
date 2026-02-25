@@ -26,6 +26,7 @@ type ProjectSummary = {
   description: string | null;
   url: string | null;
   slug: string | null;
+  level: number;
   project_repos: Repo[];
 };
 
@@ -126,6 +127,7 @@ async function getUserData(
       description,
       url,
       slug,
+      level,
       project_repos!left(id, repo_full_name, repo_url, active)
     `
     )
@@ -235,9 +237,14 @@ export default async function UserPage({
             {projects.map((p) => (
               <Link key={p.id} href={`/u/${username}/projects/${p.slug?.trim() ? p.slug : p.id}`}>
                 <div className="card rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]">
-                  <h3 className="font-semibold text-[#2a1f14]">
-                    {p.title}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-[#2a1f14]">
+                      {p.title}
+                    </h3>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                      Lv.{p.level}
+                    </span>
+                  </div>
                   {p.description && (
                     <p className="mt-1 text-sm text-[#78716c]">
                       {p.description}

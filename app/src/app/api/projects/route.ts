@@ -26,6 +26,8 @@ export async function GET() {
       slug,
       category,
       active,
+      xp,
+      level,
       created_at,
       project_repos!left(id, repo_full_name, repo_url, installation_id, active)
     `

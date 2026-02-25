@@ -17,6 +17,7 @@ type Project = {
   url: string | null;
   slug: string | null;
   category: string | null;
+  level: number;
   project_repos: Repo[];
 };
 
