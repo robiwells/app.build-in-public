@@ -171,14 +171,17 @@ function projectSegment(p: { slug?: string | null; id: string }): string {
   return p.slug?.trim() ? p.slug : p.id;
 }
 
-function groupByDate(items: FeedItem[]): [string, FeedItem[]][] {
-  const map = new Map<string, FeedItem[]>();
+function groupByDate(items: FeedItem[]): { key: string; date: string; items: FeedItem[] }[] {
+  const map = new Map<string, { date: string; items: FeedItem[] }>();
   for (const item of items) {
     const date = item.activity.date_utc ?? "";
-    if (!map.has(date)) map.set(date, []);
-    map.get(date)!.push(item);
+    const key = item.activity.type === "milestone"
+      ? `milestone_${item.activity.id}`
+      : date;
+    if (!map.has(key)) map.set(key, { date, items: [] });
+    map.get(key)!.items.push(item);
   }
-  return [...map.entries()];
+  return [...map.entries()].map(([key, { date, items }]) => ({ key, date, items }));
 }
 
 function formatDate(dateUtc: string): string {
@@ -273,25 +276,34 @@ export default async function ProjectPage({
           <p className="text-[#78716c]">No activity yet.</p>
         ) : (
           <>
-            <div className="space-y-0">
-              {groupByDate(feed).map(([date, items]) => (
-                <div key={date}>
-                  <p className="border-b border-[#e8ddd0] pt-4 pb-2 text-sm font-medium text-[#2a1f14]">
-                    {formatDate(date)}
-                  </p>
-                  {items.map((item) => (
-                    <ActivityItem
-                      key={item.activity.id ?? item.activity.date_utc}
-                      user={null}
-                      project={{ title: project.title }}
-                      repo={item.repo}
-                      activity={item.activity}
-                      showUser={false}
-                      showProject={false}
-                      hideHeader={true}
-                      canDelete={isOwner}
-                    />
-                  ))}
+            <div className="space-y-4">
+              {groupByDate(feed).map(({ key, date, items }) => (
+                <div
+                  key={key}
+                  className={`overflow-hidden rounded-xl bg-white ${
+                    items.some(i => i.activity.type === "milestone")
+                      ? "border border-amber-300 shadow-[0_1px_3px_rgba(120,80,40,0.10)]"
+                      : "card"
+                  }`}
+                >
+                  <div className="flex items-center border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
+                    <span className="text-sm font-medium text-[#2a1f14]">{formatDate(date)}</span>
+                  </div>
+                  <div className="px-4">
+                    {items.map((item) => (
+                      <ActivityItem
+                        key={item.activity.id ?? item.activity.date_utc}
+                        user={null}
+                        project={{ title: project.title }}
+                        repo={item.repo}
+                        activity={item.activity}
+                        showUser={false}
+                        showProject={false}
+                        hideHeader={true}
+                        canDelete={isOwner}
+                      />
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

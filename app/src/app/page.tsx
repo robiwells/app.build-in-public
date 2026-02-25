@@ -105,9 +105,6 @@ export default async function HomePage({
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
       <FeedRefresh />
-      <h1 className="mb-6 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
-        Activity feed
-      </h1>
 
       {sessionUser?.userId && sessionUserData && (
         <Composer
