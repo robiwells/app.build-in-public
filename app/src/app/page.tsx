@@ -191,6 +191,7 @@ export default async function HomePage({
                           activity={item.activity}
                           showUser={false}
                           showProject={false}
+                          hideHeader={true}
                           projectHref={projectHref}
                           heartCount={item.activity.hearts_count}
                           commentCount={item.activity.comments_count}

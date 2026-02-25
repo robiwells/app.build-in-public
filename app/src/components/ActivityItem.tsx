@@ -32,6 +32,8 @@ type ActivityItemProps = {
   canDelete?: boolean;
   /** After delete, navigate here (e.g. on post detail page). Otherwise refresh. */
   deleteRedirectHref?: string;
+  /** Suppress the date heading even when dateAsHeader would be true. */
+  hideHeader?: boolean;
 };
 
 function formatDate(dateUtc: string | undefined): string {
@@ -79,6 +81,7 @@ export function ActivityItem({
   postHref,
   canDelete,
   deleteRedirectHref,
+  hideHeader,
 }: ActivityItemProps) {
   const isManual = activity.type === "manual";
   const isMilestone = activity.type === "milestone";
@@ -90,6 +93,10 @@ export function ActivityItem({
   const timeRange = formatTimeRange(activity.first_commit_at, activity.last_commit_at);
   const messages = activity.commit_messages ?? [];
   const showMenu = canDelete && activity.id;
+  const showHeaderRow =
+    (showUser && !!user) ||
+    (showProject && !!projectTitle) ||
+    (dateAsHeader && !hideHeader);
 
   return (
     <article className={`border-b py-4 last:border-0 ${isMilestone ? "border-amber-300" : "border-[#e8ddd0]"}`}>
@@ -114,35 +121,32 @@ export function ActivityItem({
           </Link>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+          {showHeaderRow && (
             <p className="min-w-0 text-[#2a1f14]">
-            {showUser && user && (
-              <>
-                <Link href={`/u/${user.username}`} className="font-medium hover:text-[#b5522a]">
-                  {user.username}
-                </Link>
-                {" · "}
-              </>
-            )}
-            {showProject && (projectTitle ? (
-              projectHref ? (
-                <Link href={projectHref} className="font-medium hover:text-[#b5522a]">
-                  {projectTitle}
-                </Link>
-              ) : (
-                <span className="font-medium">{projectTitle}</span>
-              )
-            ) : !isManual ? (
-              <span className="font-medium">{repoName}</span>
-            ) : null)}
-            {dateAsHeader && (
-              <span className="font-medium">{formatDate(activity.date_utc)}</span>
-            )}
+              {showUser && user && (
+                <>
+                  <Link href={`/u/${user.username}`} className="font-medium hover:text-[#b5522a]">
+                    {user.username}
+                  </Link>
+                  {" · "}
+                </>
+              )}
+              {showProject && (projectTitle ? (
+                projectHref ? (
+                  <Link href={projectHref} className="font-medium hover:text-[#b5522a]">
+                    {projectTitle}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{projectTitle}</span>
+                )
+              ) : !isManual ? (
+                <span className="font-medium">{repoName}</span>
+              ) : null)}
+              {dateAsHeader && !hideHeader && (
+                <span className="font-medium">{formatDate(activity.date_utc)}</span>
+              )}
             </p>
-            {showMenu && (
-              <PostMenu postId={activity.id!} redirectHref={deleteRedirectHref} />
-            )}
-          </div>
+          )}
 
           {isMilestone ? (
             <>
@@ -225,6 +229,9 @@ export function ActivityItem({
             </div>
           )}
         </div>
+        {showMenu && (
+          <PostMenu postId={activity.id!} redirectHref={deleteRedirectHref} />
+        )}
       </div>
     </article>
   );

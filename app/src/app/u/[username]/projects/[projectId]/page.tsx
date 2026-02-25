@@ -171,6 +171,21 @@ function projectSegment(p: { slug?: string | null; id: string }): string {
   return p.slug?.trim() ? p.slug : p.id;
 }
 
+function groupByDate(items: FeedItem[]): [string, FeedItem[]][] {
+  const map = new Map<string, FeedItem[]>();
+  for (const item of items) {
+    const date = item.activity.date_utc ?? "";
+    if (!map.has(date)) map.set(date, []);
+    map.get(date)!.push(item);
+  }
+  return [...map.entries()];
+}
+
+function formatDate(dateUtc: string): string {
+  const [y, m, d] = dateUtc.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
 export default async function ProjectPage({
   params,
   searchParams,
@@ -259,17 +274,25 @@ export default async function ProjectPage({
         ) : (
           <>
             <div className="space-y-0">
-              {feed.map((item) => (
-                <ActivityItem
-                  key={item.activity.id ?? item.activity.date_utc}
-                  user={null}
-                  project={{ title: project.title }}
-                  repo={item.repo}
-                  activity={item.activity}
-                  showUser={false}
-                  showProject={false}
-                  canDelete={isOwner}
-                />
+              {groupByDate(feed).map(([date, items]) => (
+                <div key={date}>
+                  <p className="border-b border-[#e8ddd0] pt-4 pb-2 text-sm font-medium text-[#2a1f14]">
+                    {formatDate(date)}
+                  </p>
+                  {items.map((item) => (
+                    <ActivityItem
+                      key={item.activity.id ?? item.activity.date_utc}
+                      user={null}
+                      project={{ title: project.title }}
+                      repo={item.repo}
+                      activity={item.activity}
+                      showUser={false}
+                      showProject={false}
+                      hideHeader={true}
+                      canDelete={isOwner}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
             {nextCursor && (
