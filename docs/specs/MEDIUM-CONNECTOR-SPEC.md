@@ -113,7 +113,7 @@ Optional: `guid`, `author` (from `<dc:creator>`), `categories` (array of `<categ
 
 ### 6.1 Trigger
 
-- **Vercel Cron** (or Supabase Edge Function / external worker) at a fixed interval (e.g. every 2 hours).
+- **Vercel Cron** (or Supabase Edge Function / external worker) **Note:** Vercel Hobby allows only one run per day; the app uses `0 12 * * *` (daily at 12:00 UTC). Pro can use more frequent schedules (e.g. every 2 hours).
 - Route: e.g. `GET /api/cron/ingest-medium` protected by `CRON_SECRET` or Vercel’s cron auth.
 
 ### 6.2 Algorithm
@@ -175,7 +175,7 @@ Optional: `guid`, `author` (from `<dc:creator>`), `categories` (array of `<categ
 1. **Link flow:** A user can enter `@username` (or a publication slug) on the Connectors page or when adding a source to a project; the system validates the RSS URL and creates `user_connectors` and `project_connector_sources` with the correct `url` and `external_id`.
 2. **Ingestion:** After the first cron run, the last N articles (e.g. 10) from the feed appear as `auto_medium` activities in the database for that project.
 3. **Idempotency:** Re-running the worker does not create duplicate activities for the same article (same `connector_source_id` + `article_url` in `connector_metadata`).
-4. **Freshness:** New articles published after the source is linked appear in the feed within the configured polling interval (e.g. 2 hours).
+4. **Freshness:** New articles published after the source is linked appear in the feed within the configured polling interval (once per day on Hobby; more frequent on Vercel Pro if the schedule is changed).
 5. **Feed UX:** Medium articles render with the dedicated Medium card (title, date, thumbnail, “Read on Medium”), and are visually distinct from commit-based activity.
 
 ---
