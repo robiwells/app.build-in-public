@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { UserMenu } from "@/components/UserMenu";
 import { SignInModal } from "@/components/SignInModal";
@@ -10,11 +11,15 @@ export async function Header() {
   return (
     <header className="border-b border-[#e8ddd0] bg-[#faf7f2]">
       <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-        <Link
-          href="/"
-          className="font-[family-name:var(--font-fraunces)] text-xl font-semibold tracking-tight text-[#2a1f14]"
-        >
-          Build in Public
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/logo-v2-smaller-transparent.png"
+            alt="the Daily Log"
+            width={140}
+            height={36}
+            className="h-12 w-auto"
+            priority
+          />
         </Link>
         <nav className="flex items-center gap-4">
           <Link

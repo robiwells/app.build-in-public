@@ -17,7 +17,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Build in Public",
+  title: "the Daily Log",
   description: "Public feed of GitHub activity",
 };
 

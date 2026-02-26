@@ -56,7 +56,7 @@ export function SignInModal() {
 
             <div className="mb-6 text-center">
               <p className="font-[family-name:var(--font-fraunces)] text-xs font-semibold uppercase tracking-widest text-[#a8a29e]">
-                Build in Public
+                the Daily Log
               </p>
               <h2 className="mt-2 font-[family-name:var(--font-fraunces)] text-xl font-bold text-[#2a1f14]">
                 Sign in to get started
