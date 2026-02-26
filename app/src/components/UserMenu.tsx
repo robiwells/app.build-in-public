@@ -66,6 +66,13 @@ export function UserMenu({ username, avatarUrl, profileHref }: UserMenuProps) {
             Profile
           </Link>
           <Link
+            href="/connectors"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2 text-sm text-[#2a1f14] hover:bg-[#f5f0e8]"
+          >
+            Connectors
+          </Link>
+          <Link
             href="/settings"
             onClick={() => setOpen(false)}
             className="block px-4 py-2 text-sm text-[#2a1f14] hover:bg-[#f5f0e8]"
