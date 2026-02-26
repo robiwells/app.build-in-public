@@ -1,9 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CATEGORIES } from "@/lib/constants";
+import { ProjectCard } from "@/components/ProjectCard";
+import {
+  ConnectorModal,
+  type AvailableRepo,
+  type PendingConnectorSelection,
+} from "@/components/ConnectorModal";
 
-type AvailableRepo = { full_name: string; html_url: string; installation_id: number };
+type CreatedProject = {
+  id: string;
+  title: string;
+  description: string | null;
+  url: string | null;
+  slug: string | null;
+  category: string | null;
+  xp: number;
+  level: number;
+  project_repos: Array<{
+    id: string;
+    repo_full_name: string;
+    repo_url: string;
+    connector_type?: string;
+  }>;
+};
 
 export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -13,27 +34,28 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
   const [category, setCategory] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [availableRepos, setAvailableRepos] = useState<AvailableRepo[]>([]);
-  const [reposLoading, setReposLoading] = useState(false);
-  const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
+  const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setReposLoading(true);
-    fetch("/api/repos/available")
-      .then((r) => (r.ok ? r.json() : { repos: [] }))
-      .then((data: { repos?: AvailableRepo[] }) => setAvailableRepos(data.repos ?? []))
-      .catch(() => setAvailableRepos([]))
-      .finally(() => setReposLoading(false));
-  }, [open]);
+  // Pending connectors (same UX as edit: "+" opens modal, list with remove)
+  const [connectorModalOpen, setConnectorModalOpen] = useState(false);
+  const [pendingRepos, setPendingRepos] = useState<AvailableRepo[]>([]);
+  const [pendingMedium, setPendingMedium] = useState<{ external_id: string } | null>(null);
 
-  function toggleRepo(fullName: string) {
-    setSelectedRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(fullName)) next.delete(fullName);
-      else next.add(fullName);
-      return next;
-    });
+  function handleConnectorAdded(selection?: PendingConnectorSelection) {
+    if (!selection) return;
+    if (selection.repos?.length) {
+      setPendingRepos((prev) => {
+        const byName = new Map(prev.map((r) => [r.full_name, r]));
+        for (const r of selection.repos!) byName.set(r.full_name, r);
+        return [...byName.values()];
+      });
+    }
+    if (selection.medium) setPendingMedium(selection.medium);
+    setConnectorModalOpen(false);
+  }
+
+  function removePendingRepo(fullName: string) {
+    setPendingRepos((p) => p.filter((r) => r.full_name !== fullName));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -42,16 +64,15 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
     setSaving(true);
     setError("");
     try {
-      const reposPayload =
-        selectedRepos.size > 0
-          ? availableRepos
-              .filter((r) => selectedRepos.has(r.full_name))
-              .map((r) => ({
-                repo_full_name: r.full_name,
-                repo_url: r.html_url,
-                installation_id: r.installation_id,
-              }))
+      const repos =
+        pendingRepos.length > 0
+          ? pendingRepos.map((r) => ({
+              repo_full_name: r.full_name,
+              repo_url: r.html_url,
+              installation_id: r.installation_id,
+            }))
           : undefined;
+
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,7 +81,7 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
           description: description.trim() || undefined,
           url: url.trim() || undefined,
           category: category || undefined,
-          ...(reposPayload?.length ? { repos: reposPayload } : {}),
+          repos,
         }),
       });
       if (!res.ok) {
@@ -68,18 +89,50 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
         setError((data as { error?: string }).error ?? "Failed to create project");
         return;
       }
-      setTitle("");
-      setDescription("");
-      setUrl("");
-      setCategory("");
-      setSelectedRepos(new Set());
-      setOpen(false);
-      onCreated?.();
+      const { projectId } = (await res.json()) as { projectId: string };
+
+      if (pendingMedium) {
+        await fetch(`/api/projects/${projectId}/sources`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            connector_type: "medium",
+            external_id: pendingMedium.external_id,
+          }),
+        });
+      }
+
+      const projectRes = await fetch(`/api/projects/${projectId}`);
+      if (projectRes.ok) {
+        const data = (await projectRes.json()) as { project: CreatedProject };
+        setCreatedProject(data.project);
+      } else {
+        setTitle("");
+        setDescription("");
+        setUrl("");
+        setCategory("");
+        setPendingRepos([]);
+        setPendingMedium(null);
+        setOpen(false);
+        onCreated?.();
+      }
     } catch {
       setError("Request failed");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleCardDone() {
+    setCreatedProject(null);
+    setTitle("");
+    setDescription("");
+    setUrl("");
+    setCategory("");
+    setPendingRepos([]);
+    setPendingMedium(null);
+    setOpen(false);
+    onCreated?.();
   }
 
   if (!open) {
@@ -90,6 +143,18 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
       >
         New Project
       </button>
+    );
+  }
+
+  // After creation, show the ProjectCard in edit mode so the user can add connectors immediately
+  if (createdProject) {
+    return (
+      <ProjectCard
+        project={createdProject}
+        editable={true}
+        startInEditMode={true}
+        onUpdated={handleCardDone}
+      />
     );
   }
 
@@ -129,51 +194,67 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
-        {/* Repo multi-select */}
+
+        {/* Connectors (same as edit: "+" opens modal, list with remove) */}
         <div>
-          <label className="block text-sm font-medium text-[#2a1f14]">
-            Connect repositories (optional)
-          </label>
-          <p className="mb-2 text-xs text-[#a8a29e]">
-            Select repos to track under this project. Only repos from your GitHub App installation that aren&apos;t already linked appear here.
-          </p>
-          {reposLoading ? (
-            <p className="rounded-lg border border-[#e8ddd0] p-3 text-sm text-[#78716c]">
-              Loading repos…
-            </p>
-          ) : availableRepos.length === 0 ? (
-            <p className="rounded-lg border border-[#e8ddd0] p-3 text-sm text-[#78716c]">
-              No repos available. Connect a repo first via Settings → GitHub.
-            </p>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm font-medium text-[#2a1f14]">Connectors</label>
+            <button
+              type="button"
+              onClick={() => setConnectorModalOpen(true)}
+              className="rounded-full border border-[#e8ddd0] px-2 py-0.5 text-xs text-[#78716c] hover:border-[#c9b99a] hover:text-[#2a1f14]"
+            >
+              +
+            </button>
+          </div>
+          {pendingRepos.length === 0 && !pendingMedium ? (
+            <p className="text-xs text-[#a8a29e]">No connectors yet</p>
           ) : (
-            <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[#e8ddd0] p-2">
-              {availableRepos.map((r) => (
-                <label
+            <div className="space-y-1">
+              {pendingRepos.map((r) => (
+                <div
                   key={r.full_name}
-                  className={[
-                    "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                    selectedRepos.has(r.full_name)
-                      ? "bg-[#f5f0e8] text-[#2a1f14]"
-                      : "text-[#78716c] hover:bg-[#faf7f2]",
-                  ].join(" ")}
+                  className="flex items-center gap-2 rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm"
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedRepos.has(r.full_name)}
-                    onChange={() => toggleRepo(r.full_name)}
-                    className="h-4 w-4 rounded border-[#e8ddd0] text-[#b5522a] focus:ring-[#b5522a]/30"
-                  />
-                  <span className="truncate">{r.full_name}</span>
-                </label>
+                  <SourceBadge type="github" />
+                  <a
+                    href={r.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 flex-1 truncate text-[#78716c] hover:underline"
+                  >
+                    {r.full_name}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => removePendingRepo(r.full_name)}
+                    className="shrink-0 text-xs text-[#a8a29e] hover:text-red-500"
+                    aria-label="Remove"
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
+              {pendingMedium && (
+                <div className="flex items-center gap-2 rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm">
+                  <SourceBadge type="medium" />
+                  <span className="min-w-0 flex-1 truncate text-[#78716c]">
+                    {pendingMedium.external_id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPendingMedium(null)}
+                    className="shrink-0 text-xs text-[#a8a29e] hover:text-red-500"
+                    aria-label="Remove"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
             </div>
           )}
-          {selectedRepos.size > 0 && (
-            <p className="mt-1 text-xs text-[#78716c]">
-              {selectedRepos.size} repo{selectedRepos.size !== 1 ? "s" : ""} selected
-            </p>
-          )}
         </div>
+
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">
           <button
@@ -191,7 +272,8 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
               setDescription("");
               setUrl("");
               setCategory("");
-              setSelectedRepos(new Set());
+              setPendingRepos([]);
+              setPendingMedium(null);
               setError("");
             }}
             className="rounded-full px-4 py-1.5 text-sm text-[#78716c] hover:text-[#2a1f14]"
@@ -200,6 +282,31 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
           </button>
         </div>
       </div>
+
+      {connectorModalOpen && (
+        <ConnectorModal
+          onAdded={handleConnectorAdded}
+          onClose={() => setConnectorModalOpen(false)}
+        />
+      )}
     </form>
   );
+}
+
+function SourceBadge({ type }: { type: string }) {
+  if (type === "github") {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#24292e] text-[9px] font-bold text-white">
+        GH
+      </span>
+    );
+  }
+  if (type === "medium") {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
+        M
+      </span>
+    );
+  }
+  return null;
 }

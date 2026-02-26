@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { CATEGORIES } from "@/lib/constants";
-import { levelProgressPct } from "@/lib/xp";
+import { ConnectorModal } from "@/components/ConnectorModal";
 
 type Repo = {
   id: string;
@@ -24,20 +24,21 @@ type Project = {
   project_repos: Repo[];
 };
 
-type AvailableRepo = { full_name: string; html_url: string; installation_id: number };
-
 export function ProjectCard({
   project,
   editable,
   onUpdated,
   projectHref,
+  startInEditMode = false,
 }: {
   project: Project;
   editable: boolean;
   onUpdated?: () => void;
   projectHref?: string;
+  /** When true, show the edit form immediately (e.g. when opened in a modal). */
+  startInEditMode?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startInEditMode);
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description ?? "");
   const [url, setUrl] = useState(project.url ?? "");
@@ -45,32 +46,8 @@ export function ProjectCard({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
-  const [availableRepos, setAvailableRepos] = useState<AvailableRepo[]>([]);
-  const [reposLoading, setReposLoading] = useState(false);
-  const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
-  const [mediumInput, setMediumInput] = useState("");
-  const [mediumSaving, setMediumSaving] = useState(false);
-  const [mediumError, setMediumError] = useState("");
-
-  useEffect(() => {
-    if (!editing || !editable) return;
-    setSelectedRepos(new Set(project.project_repos.map((r) => r.repo_full_name)));
-    setReposLoading(true);
-    fetch(`/api/repos/available?projectId=${encodeURIComponent(project.id)}`)
-      .then((r) => (r.ok ? r.json() : { repos: [] }))
-      .then((data: { repos?: AvailableRepo[] }) => setAvailableRepos(data.repos ?? []))
-      .catch(() => setAvailableRepos([]))
-      .finally(() => setReposLoading(false));
-  }, [editing, editable, project.id, project.project_repos]);
-
-  function toggleRepo(fullName: string) {
-    setSelectedRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(fullName)) next.delete(fullName);
-      else next.add(fullName);
-      return next;
-    });
-  }
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalFilterType, setModalFilterType] = useState<string | undefined>(undefined);
 
   async function handleSave() {
     if (!title.trim()) return;
@@ -91,25 +68,6 @@ export function ProjectCard({
         const data = await res.json().catch(() => ({}));
         setError((data as { error?: string }).error ?? "Failed to save");
         return;
-      }
-      const currentFullNames = new Set(project.project_repos.map((r) => r.repo_full_name));
-      const toRemove = project.project_repos.filter((r) => !selectedRepos.has(r.repo_full_name));
-      const toAdd = availableRepos.filter(
-        (r) => selectedRepos.has(r.full_name) && !currentFullNames.has(r.full_name)
-      );
-      for (const repo of toRemove) {
-        await fetch(`/api/projects/${project.id}/repos/${repo.id}`, { method: "DELETE" });
-      }
-      for (const repo of toAdd) {
-        await fetch(`/api/projects/${project.id}/repos`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            repo_full_name: repo.full_name,
-            repo_url: repo.html_url,
-            installation_id: repo.installation_id,
-          }),
-        });
       }
       setEditing(false);
       onUpdated?.();
@@ -150,162 +108,138 @@ export function ProjectCard({
     }
   }
 
-  async function handleAddMedium(e: React.FormEvent) {
-    e.preventDefault();
-    if (!mediumInput.trim()) return;
-    setMediumSaving(true);
-    setMediumError("");
-    try {
-      const res = await fetch(`/api/projects/${project.id}/sources`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connector_type: "medium", external_id: mediumInput.trim() }),
-      });
-      const data = await res.json() as { error?: string };
-      if (!res.ok) {
-        setMediumError(data.error ?? "Failed to add Medium feed");
-        return;
-      }
-      setMediumInput("");
-      onUpdated?.();
-    } catch {
-      setMediumError("Request failed");
-    } finally {
-      setMediumSaving(false);
-    }
+  function openModal(filterType?: string) {
+    setModalFilterType(filterType);
+    setModalOpen(true);
   }
 
   if (editing) {
     return (
-      <div className="card rounded-xl p-4">
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Project title"
-            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
-            required
-          />
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Short description (optional)"
-            rows={2}
-            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
-          />
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="Project URL (optional)"
-            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
-          />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
-          >
-            <option value="">Category (optional)</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          {/* Repo multi-select when editing */}
-          <div>
-            <label className="block text-sm font-medium text-[#2a1f14]">
-              Repositories
-            </label>
-            <p className="mb-2 text-xs text-[#a8a29e]">
-              Select which repos to track under this project.
-            </p>
-            {reposLoading ? (
-              <p className="rounded-lg border border-[#e8ddd0] p-3 text-sm text-[#78716c]">
-                Loading repos…
-              </p>
-            ) : availableRepos.length === 0 ? (
-              <p className="rounded-lg border border-[#e8ddd0] p-3 text-sm text-[#78716c]">
-                No repos available. Connect a repo via Settings → GitHub.
-              </p>
-            ) : (
-              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[#e8ddd0] p-2">
-                {availableRepos.map((r) => (
-                  <label
-                    key={r.full_name}
-                    className={[
-                      "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                      selectedRepos.has(r.full_name)
-                        ? "bg-[#f5f0e8] text-[#2a1f14]"
-                        : "text-[#78716c] hover:bg-[#faf7f2]",
-                    ].join(" ")}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedRepos.has(r.full_name)}
-                      onChange={() => toggleRepo(r.full_name)}
-                      className="h-4 w-4 rounded border-[#e8ddd0] text-[#b5522a] focus:ring-[#b5522a]/30"
-                    />
-                    <span className="truncate">{r.full_name}</span>
-                  </label>
-                ))}
+      <>
+        <div className="card rounded-xl p-4">
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Project title"
+              className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
+              required
+            />
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Short description (optional)"
+              rows={2}
+              className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
+            />
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Project URL (optional)"
+              className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
+            />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
+            >
+              <option value="">Category (optional)</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+
+            {/* Connectors section */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-sm font-medium text-[#2a1f14]">Connectors</label>
+                <button
+                  type="button"
+                  onClick={() => openModal()}
+                  className="rounded-full border border-[#e8ddd0] px-2 py-0.5 text-xs text-[#78716c] hover:border-[#c9b99a] hover:text-[#2a1f14]"
+                >
+                  +
+                </button>
               </div>
-            )}
-            {selectedRepos.size > 0 && (
-              <p className="mt-1 text-xs text-[#78716c]">
-                {selectedRepos.size} repo{selectedRepos.size !== 1 ? "s" : ""} selected
-              </p>
-            )}
-          </div>
-          {/* Medium feed link */}
-          <div>
-            <label className="block text-sm font-medium text-[#2a1f14]">
-              Link Medium feed
-            </label>
-            <p className="mb-2 text-xs text-[#a8a29e]">
-              Add a Medium username or publication slug to import articles.
-            </p>
-            <form onSubmit={handleAddMedium} className="flex gap-2">
-              <input
-                type="text"
-                value={mediumInput}
-                onChange={(e) => setMediumInput(e.target.value)}
-                placeholder="@username or publication-slug"
-                className="min-w-0 flex-1 rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
-              />
+              {project.project_repos.length === 0 ? (
+                <p className="text-xs text-[#a8a29e]">No connectors yet</p>
+              ) : (
+                <div className="space-y-1">
+                  {project.project_repos.map((repo) => (
+                    <div
+                      key={repo.id}
+                      className="flex items-center gap-2 rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm"
+                    >
+                      <SourceBadge type={repo.connector_type} />
+                      <a
+                        href={repo.repo_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-w-0 flex-1 truncate text-[#78716c] hover:underline"
+                      >
+                        {repo.repo_full_name}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRepo(repo.id)}
+                        className="shrink-0 text-xs text-[#a8a29e] hover:text-red-500"
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openModal(repo.connector_type)}
+                        className="shrink-0 text-xs text-[#a8a29e] hover:text-[#2a1f14]"
+                        aria-label="Add another"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-2">
               <button
-                type="submit"
-                disabled={mediumSaving || !mediumInput.trim()}
-                className="shrink-0 rounded-full bg-[#b5522a] px-3 py-2 text-sm font-medium text-white hover:bg-[#9a4522] disabled:opacity-50"
+                onClick={handleSave}
+                disabled={saving || !title.trim()}
+                className="rounded-full bg-[#b5522a] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#9a4522] disabled:opacity-50"
               >
-                {mediumSaving ? "…" : "Add"}
+                {saving ? "Saving…" : "Save"}
               </button>
-            </form>
-            {mediumError && <p className="mt-1 text-xs text-red-600">{mediumError}</p>}
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving || !title.trim()}
-              className="rounded-full bg-[#b5522a] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#9a4522] disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-            <button
-              onClick={() => {
-                setEditing(false);
-                setTitle(project.title);
-                setDescription(project.description ?? "");
-                setUrl(project.url ?? "");
-                setCategory(project.category ?? "");
-              }}
-              className="rounded-full px-4 py-1.5 text-sm text-[#78716c] hover:text-[#2a1f14]"
-            >
-              Cancel
-            </button>
+              <button
+                onClick={() => {
+                  setEditing(false);
+                  setTitle(project.title);
+                  setDescription(project.description ?? "");
+                  setUrl(project.url ?? "");
+                  setCategory(project.category ?? "");
+                }}
+                className="rounded-full px-4 py-1.5 text-sm text-[#78716c] hover:text-[#2a1f14]"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+
+        {modalOpen && (
+          <ConnectorModal
+            projectId={project.id}
+            filterType={modalFilterType}
+            onAdded={() => {
+              setModalOpen(false);
+              onUpdated?.();
+            }}
+            onClose={() => setModalOpen(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -367,41 +301,52 @@ export function ProjectCard({
         )}
       </div>
 
+      {/* Connectors (view mode) */}
       {project.project_repos.length > 0 && (
-        <div className="mt-3 space-y-1">
-          {project.project_repos.map((repo) => (
-            <div
-              key={repo.id}
-              className="flex items-center justify-between rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm"
-            >
-              <a
-                href={repo.repo_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="truncate text-[#78716c] hover:underline"
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs font-medium text-[#a8a29e] uppercase tracking-wide">
+            Connectors
+          </p>
+          <div className="space-y-1">
+            {project.project_repos.map((repo) => (
+              <div
+                key={repo.id}
+                className="flex items-center gap-2 rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm"
               >
-                {repo.connector_type === "medium"
-                  ? `Medium: ${repo.repo_full_name}`
-                  : repo.repo_full_name}
-              </a>
-              {editable && (
-                <button
-                  onClick={() => handleRemoveRepo(repo.id)}
-                  className="ml-2 shrink-0 text-xs text-[#a8a29e] hover:text-red-500"
+                <SourceBadge type={repo.connector_type} />
+                <a
+                  href={repo.repo_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate text-[#78716c] hover:underline"
                 >
-                  Remove
-                </button>
-              )}
-            </div>
-          ))}
+                  {repo.repo_full_name}
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
       )}
-      {project.project_repos.length === 0 && (
-        <p className="mt-3 text-sm text-[#a8a29e]">
-          No sources tracked yet
-        </p>
-      )}
+
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
+}
+
+function SourceBadge({ type }: { type?: string }) {
+  if (type === "github") {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#24292e] text-[9px] font-bold text-white">
+        GH
+      </span>
+    );
+  }
+  if (type === "medium") {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
+        M
+      </span>
+    );
+  }
+  return null;
 }

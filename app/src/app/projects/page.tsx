@@ -3,6 +3,7 @@ import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { CATEGORIES } from "@/lib/constants";
 import { HeartButton } from "@/components/HeartButton";
+import { EditableProjectCard } from "@/components/EditableProjectCard";
 
 export const revalidate = 60;
 
@@ -86,12 +87,47 @@ export default async function ProjectsPage({ searchParams }: Props) {
             const user = Array.isArray(project.users)
               ? project.users[0]
               : project.users;
-            const username = (user as { username?: string } | null)?.username ?? null;
+            const userObj = user as { id?: string; username?: string } | null;
+            const username = userObj?.username ?? null;
+            const ownerId = userObj?.id ?? null;
+            const isOwner =
+              sessionUserId && ownerId && sessionUserId === ownerId;
             const activities = (project.activities ?? []) as { created_at: string }[];
             const postCount = activities.length;
-            const lastActivityDate = activities.length > 0
-              ? activities.reduce((max, a) => a.created_at > max ? a.created_at : max, activities[0].created_at)
-              : null;
+            const lastActivityDate =
+              activities.length > 0
+                ? activities.reduce(
+                    (max, a) =>
+                      a.created_at > max ? a.created_at : max,
+                    activities[0].created_at
+                  )
+                : null;
+
+            if (isOwner) {
+              return (
+                <EditableProjectCard
+                  key={project.id}
+                  projectId={project.id}
+                  ownerUsername={username}
+                  project={{
+                    id: project.id,
+                    title: project.title,
+                    description: project.description,
+                    url: project.url,
+                    slug: project.slug,
+                    category: project.category,
+                    level: project.level ?? 1,
+                    hearts_count: project.hearts_count ?? 0,
+                    comments_count: project.comments_count ?? 0,
+                    postCount,
+                    lastActivityDate,
+                  }}
+                  sessionUserId={sessionUserId}
+                  initialHearted={heartedSet.has(project.id)}
+                />
+              );
+            }
+
             const projectHref = username
               ? `/u/${username}/projects/${project.slug ?? project.id}`
               : null;
