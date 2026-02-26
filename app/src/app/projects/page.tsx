@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { CATEGORIES } from "@/lib/constants";
 import { HeartButton } from "@/components/HeartButton";
 import { EditableProjectCard } from "@/components/EditableProjectCard";
+import { NewProjectButton } from "@/components/NewProjectButton";
 
 export const revalidate = 60;
 
@@ -53,9 +54,12 @@ export default async function ProjectsPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-6 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
-        Projects
-      </h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#2a1f14]">
+          Projects
+        </h1>
+        {sessionUserId && <NewProjectButton />}
+      </div>
 
       {/* Category filter */}
       <div className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none">

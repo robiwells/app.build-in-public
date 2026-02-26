@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { CATEGORIES } from "@/lib/constants";
 import { ConnectorModal } from "@/components/ConnectorModal";
@@ -48,6 +48,8 @@ export function ProjectCard({
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalFilterType, setModalFilterType] = useState<string | undefined>(undefined);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleSave() {
     if (!title.trim()) return;
@@ -80,6 +82,7 @@ export function ProjectCard({
 
   async function handleDelete() {
     if (!confirm("Delete this project? Activity history will be preserved.")) return;
+    setMenuOpen(false);
     setDeleting(true);
     setError("");
     try {
@@ -112,6 +115,17 @@ export function ProjectCard({
     setModalFilterType(filterType);
     setModalOpen(true);
   }
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   if (editing) {
     return (
@@ -278,20 +292,50 @@ export function ProjectCard({
           )}
         </div>
         {editable && (
-          <div className="flex shrink-0 gap-1">
+          <div className="relative shrink-0" ref={menuRef}>
             <button
-              onClick={() => setEditing(true)}
-              className="rounded-lg px-2 py-1 text-xs text-[#78716c] hover:bg-[#f5f0e8] hover:text-[#2a1f14]"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleDelete}
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
               disabled={deleting}
-              className="rounded-lg px-2 py-1 text-xs text-[#78716c] hover:bg-red-50 hover:text-red-600"
+              className="rounded-lg p-1.5 text-[#78716c] hover:bg-[#f5f0e8] hover:text-[#2a1f14] disabled:opacity-50"
+              aria-expanded={menuOpen}
+              aria-haspopup="true"
+              aria-label="Project options"
             >
-              {deleting ? "…" : "Delete"}
+              <span className="sr-only">Options</span>
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <circle cx="12" cy="6" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="12" cy="18" r="1.5" />
+              </svg>
             </button>
+            {menuOpen && (
+              <div
+                className="absolute right-0 top-full z-10 mt-1 min-w-[8rem] rounded-lg border border-[#e8ddd0] bg-white py-1 shadow-lg"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setEditing(true);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm text-[#2a1f14] hover:bg-[#f5f0e8]"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {deleting ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
