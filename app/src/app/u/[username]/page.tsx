@@ -113,8 +113,8 @@ async function getUserData(
   }
   if (!user) return null;
 
-  // Fetch user's active projects with repos
-  const { data: projects } = await supabase
+  // Fetch user's active projects with connector sources
+  const { data: rawProjects } = await supabase
     .from("projects")
     .select(
       `
@@ -125,19 +125,34 @@ async function getUserData(
       slug,
       xp,
       level,
-      project_repos!left(id, repo_full_name, repo_url, active)
+      project_connector_sources!left(id, external_id, url, active, connector_type)
     `
     )
     .eq("user_id", user.id)
-    .eq("project_repos.active", true)
+    .eq("project_connector_sources.connector_type", "github")
+    .eq("project_connector_sources.active", true)
     .eq("active", true)
     .order("created_at", { ascending: false });
+
+  // Remap to backward-compatible shape
+  const projects = (rawProjects ?? []).map((p) => {
+    const { project_connector_sources: sources, ...rest } = p as Record<string, unknown>;
+    return {
+      ...rest,
+      project_repos: ((sources as Array<Record<string, unknown>>) ?? []).map((s) => ({
+        id: s.id,
+        repo_full_name: s.external_id,
+        repo_url: s.url,
+        active: s.active,
+      })),
+    };
+  });
 
   const { feed, nextCursor } = await queryUserFeed(user.id, { cursor, sessionUserId });
 
   return {
     user,
-    projects: (projects as ProjectSummary[]) ?? [],
+    projects: (projects as unknown as ProjectSummary[]) ?? [],
     feed,
     nextCursor,
   };

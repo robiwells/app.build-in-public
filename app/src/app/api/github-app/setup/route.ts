@@ -58,10 +58,10 @@ export async function GET(request: Request) {
   // Record this installation for the user so "available repos" works even if they skip adding to a project
   const supabase = createSupabaseAdmin();
   await supabase
-    .from("user_github_installations")
+    .from("user_connectors")
     .upsert(
-      { user_id: userId, installation_id: installationId },
-      { onConflict: "user_id,installation_id", ignoreDuplicates: true }
+      { user_id: userId, type: "github", external_id: String(installationId) },
+      { onConflict: "user_id,type,external_id", ignoreDuplicates: true }
     );
 
   // Redirect to the repo picker; user can add repos to a project or skip

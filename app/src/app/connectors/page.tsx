@@ -14,12 +14,14 @@ export default async function ConnectorsPage() {
   if (!user.userId) redirect("/api/auth/signin?callbackUrl=/connectors");
 
   const supabase = createSupabaseAdmin();
-  const { data: installations } = await supabase
-    .from("user_github_installations")
-    .select("installation_id")
+  const { data: connectors } = await supabase
+    .from("user_connectors")
+    .select("id")
     .eq("user_id", user.userId)
+    .eq("type", "github")
+    .eq("active", true)
     .limit(1);
-  const isConnected = (installations?.length ?? 0) > 0;
+  const isConnected = (connectors?.length ?? 0) > 0;
 
   const appSlug = process.env.GITHUB_APP_SLUG;
   const installAppUrl =

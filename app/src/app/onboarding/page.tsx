@@ -22,17 +22,24 @@ export default async function OnboardingPage({ searchParams }: Props) {
     redirect("/api/auth/signin?callbackUrl=/onboarding");
   }
 
-  // Check if user already has any active project with repos
+  // Check if user already has any active connector sources linked to projects
   const supabase = createSupabaseAdmin();
-  const { data: repos } = await supabase
-    .from("project_repos")
+  const { data: userConnectors } = await supabase
+    .from("user_connectors")
     .select("id")
-    .eq("user_id", user.userId)
-    .eq("active", true)
-    .limit(1);
+    .eq("user_id", user.userId);
+  const connectorIds = (userConnectors ?? []).map((c) => c.id);
 
-  if (repos && repos.length > 0) {
-    redirect(`/u/${user.username}`);
+  if (connectorIds.length > 0) {
+    const { data: sources } = await supabase
+      .from("project_connector_sources")
+      .select("id")
+      .in("user_connector_id", connectorIds)
+      .eq("active", true)
+      .limit(1);
+    if (sources && sources.length > 0) {
+      redirect(`/u/${user.username}`);
+    }
   }
 
   const { error: errorCode } = await searchParams;

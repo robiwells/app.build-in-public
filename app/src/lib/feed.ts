@@ -46,7 +46,7 @@ function mapRow(
 ): FeedItem {
   const users = row.users as Record<string, unknown> | null;
   const projects = row.projects as Record<string, unknown> | null;
-  const projectRepos = row.project_repos as Record<string, unknown> | null;
+  const connectorSource = row.project_connector_sources as Record<string, unknown> | null;
   const id = row.id as string | undefined;
   const userId = activityUserId ?? (row.user_id as string | undefined);
 
@@ -58,10 +58,10 @@ function mapRow(
           slug: projects.slug as string | null | undefined,
         }
       : null,
-    repo: projectRepos
+    repo: connectorSource
       ? {
-          repo_full_name: projectRepos.repo_full_name as string,
-          repo_url: projectRepos.repo_url as string,
+          repo_full_name: connectorSource.external_id as string,
+          repo_url: connectorSource.url as string,
         }
       : null,
     activity: {
@@ -106,10 +106,10 @@ export async function queryFeed(opts: FeedQueryOpts): Promise<{
     .select(
       `id, date_utc, type, content_text, content_image_url, commit_count,
        first_commit_at, last_commit_at, github_link, commit_messages,
-       hearts_count, comments_count, user_id, project_id, project_repo_id,
+       hearts_count, comments_count, user_id, project_id,
        users!inner(id, username, avatar_url),
        projects(id, title, slug, active, category),
-       project_repos(repo_full_name, repo_url)`
+       project_connector_sources(external_id, url)`
     )
     .order("last_commit_at", { ascending: false })
     .order("id", { ascending: false })
@@ -160,9 +160,9 @@ export async function queryUserFeed(
     .select(
       `id, date_utc, type, content_text, content_image_url, commit_count,
        first_commit_at, last_commit_at, github_link, commit_messages,
-       hearts_count, comments_count, project_id, project_repo_id,
+       hearts_count, comments_count, project_id,
        projects(id, title, slug, active),
-       project_repos(repo_full_name, repo_url)`
+       project_connector_sources(external_id, url)`
     )
     .eq("user_id", userId)
     .order("last_commit_at", { ascending: false })

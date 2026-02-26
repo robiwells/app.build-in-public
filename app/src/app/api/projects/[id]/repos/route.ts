@@ -10,10 +10,11 @@ export async function GET(
   const { id } = await params;
   const supabase = createSupabaseAdmin();
 
-  const { data: repos, error } = await supabase
-    .from("project_repos")
-    .select("id, repo_full_name, repo_url, installation_id, active, created_at")
+  const { data: sources, error } = await supabase
+    .from("project_connector_sources")
+    .select("id, external_id, url, active, created_at, user_connectors!inner(external_id)")
     .eq("project_id", id)
+    .eq("connector_type", "github")
     .eq("active", true)
     .order("created_at", { ascending: false });
 
@@ -22,7 +23,16 @@ export async function GET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ repos: repos ?? [] });
+  const repos = (sources ?? []).map((s) => ({
+    id: s.id,
+    repo_full_name: s.external_id,
+    repo_url: s.url,
+    installation_id: parseInt((s.user_connectors as { external_id: string }).external_id, 10),
+    active: s.active,
+    created_at: s.created_at,
+  }));
+
+  return NextResponse.json({ repos });
 }
 
 export async function POST(

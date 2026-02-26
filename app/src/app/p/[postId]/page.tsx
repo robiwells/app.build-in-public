@@ -68,10 +68,9 @@ export default async function PostDetailPage({
       comments_count,
       user_id,
       project_id,
-      project_repo_id,
       users(id, username, avatar_url),
       projects(id, title, slug, category),
-      project_repos(repo_full_name, repo_url)
+      project_connector_sources(external_id, url)
     `
     )
     .eq("id", postId)
@@ -82,11 +81,11 @@ export default async function PostDetailPage({
   const r = row as Record<string, unknown>;
   const u = r.users as Record<string, unknown> | null;
   const p = r.projects as Record<string, unknown> | null;
-  const repo = r.project_repos as Record<string, unknown> | null;
+  const repo = r.project_connector_sources as Record<string, unknown> | null;
 
   const user = u ? { id: u.id as string, username: u.username as string, avatar_url: u.avatar_url as string | null } : null;
   const project = p ? { id: p.id as string, title: p.title as string, slug: p.slug as string | null, category: p.category as string | null } : null;
-  const repoData = repo ? { repo_full_name: repo.repo_full_name as string, repo_url: repo.repo_url as string } : null;
+  const repoData = repo ? { repo_full_name: repo.external_id as string, repo_url: repo.url as string } : null;
 
   // Fetch hearts
   const { data: heartRows } = await supabase

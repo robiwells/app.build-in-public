@@ -32,44 +32,49 @@ export async function GET(request: Request) {
 
   const supabase = createSupabaseAdmin();
 
-  // Get installation_ids and repo_full_name; when editing, include project_id so we exclude only repos linked to *other* projects
-  const { data: existingRepos, error: existingError } = await supabase
-    .from("project_repos")
-    .select("installation_id, repo_full_name, project_id")
+  // Get all GitHub connectors for this user
+  const { data: userConnectors, error: connectorError } = await supabase
+    .from("user_connectors")
+    .select("id, external_id")
     .eq("user_id", user.userId)
+    .eq("type", "github")
     .eq("active", true);
 
-  if (existingError) {
-    return NextResponse.json({ error: existingError.message }, { status: 500 });
+  if (connectorError) {
+    return NextResponse.json({ error: connectorError.message }, { status: 500 });
   }
 
-  const rows = existingRepos ?? [];
-  const alreadyLinked = new Set(
-    projectId
-      ? rows.filter((r) => r.project_id !== projectId).map((r) => r.repo_full_name)
-      : rows.map((r) => r.repo_full_name)
-  );
-
-  // Installation IDs from repos already linked to projects, plus any from connector flow (user_github_installations)
-  const fromProjectRepos = [
-    ...new Set(rows.map((r) => r.installation_id).filter(Boolean)),
-  ] as number[];
-  const { data: userInstallations } = await supabase
-    .from("user_github_installations")
-    .select("installation_id")
-    .eq("user_id", user.userId);
-  const fromUserInstallations = (userInstallations ?? [])
-    .map((r) => r.installation_id)
-    .filter((id): id is number => typeof id === "number");
-  const installationIds = [...new Set([...fromProjectRepos, ...fromUserInstallations])];
-
-  if (installationIds.length === 0) {
+  const connectors = userConnectors ?? [];
+  if (connectors.length === 0) {
     return NextResponse.json({ repos: [] });
   }
 
+  const connectorIds = connectors.map((c) => c.id);
+
+  // Get already-linked repos across this user's connectors
+  const { data: linkedSources, error: linkedError } = await supabase
+    .from("project_connector_sources")
+    .select("external_id, project_id")
+    .in("user_connector_id", connectorIds)
+    .eq("connector_type", "github")
+    .eq("active", true);
+
+  if (linkedError) {
+    return NextResponse.json({ error: linkedError.message }, { status: 500 });
+  }
+
+  const rows = linkedSources ?? [];
+  const alreadyLinked = new Set(
+    projectId
+      ? rows.filter((r) => r.project_id !== projectId).map((r) => r.external_id)
+      : rows.map((r) => r.external_id)
+  );
+
   const repos: AvailableRepo[] = [];
 
-  for (const installationId of installationIds) {
+  for (const connector of connectors) {
+    const installationId = parseInt(connector.external_id, 10);
+    if (!Number.isInteger(installationId)) continue;
     try {
       const list = await listInstallationRepos(installationId);
       for (const r of list) {
@@ -83,7 +88,7 @@ export async function GET(request: Request) {
       }
     } catch (err) {
       console.error("[repos/available] listInstallationRepos failed", { installationId, err });
-      // Continue with other installations
+      // Continue with other connectors
     }
   }
 

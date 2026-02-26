@@ -83,7 +83,7 @@ async function getProjectData(
   if (!user) return null;
 
   const byId = UUID_REGEX.test(slugOrId);
-  const { data: project } = await supabase
+  const { data: rawProject } = await supabase
     .from("projects")
     .select(
       `
@@ -95,14 +95,31 @@ async function getProjectData(
       xp,
       level,
       comments_count,
-      project_repos!left(id, repo_full_name, repo_url, active)
+      project_connector_sources!left(id, external_id, url, active, connector_type)
     `
     )
     .eq("user_id", user.id)
     .eq(byId ? "id" : "slug", slugOrId)
     .eq("active", true)
-    .eq("project_repos.active", true)
+    .eq("project_connector_sources.connector_type", "github")
+    .eq("project_connector_sources.active", true)
     .maybeSingle();
+
+  // Remap to backward-compatible shape
+  const project = rawProject
+    ? (() => {
+        const { project_connector_sources: sources, ...rest } = rawProject as Record<string, unknown>;
+        return {
+          ...rest,
+          project_repos: ((sources as Array<Record<string, unknown>>) ?? []).map((s) => ({
+            id: s.id,
+            repo_full_name: s.external_id,
+            repo_url: s.url,
+            active: s.active,
+          })),
+        } as unknown as typeof rawProject;
+      })()
+    : null;
 
   if (!project) return null;
 
@@ -122,7 +139,7 @@ async function getProjectData(
       last_commit_at,
       github_link,
       commit_messages,
-      project_repos(repo_full_name, repo_url)
+      project_connector_sources(external_id, url)
     `
     )
     .eq("project_id", projectId)
@@ -145,12 +162,12 @@ async function getProjectData(
       : null;
 
   const feed = items.map((row: Record<string, unknown>) => {
-    const projectRepos = row.project_repos as Record<string, unknown> | null;
+    const connectorSource = row.project_connector_sources as Record<string, unknown> | null;
     return {
-      repo: projectRepos
+      repo: connectorSource
         ? {
-            repo_full_name: projectRepos.repo_full_name as string,
-            repo_url: projectRepos.repo_url as string,
+            repo_full_name: connectorSource.external_id as string,
+            repo_url: connectorSource.url as string,
           }
         : null,
       activity: {
@@ -195,7 +212,7 @@ async function getProjectData(
       xp: (project as unknown as { xp?: number }).xp ?? 0,
       level: (project as unknown as { level?: number }).level ?? 1,
       comments_count: (project as unknown as { comments_count?: number }).comments_count ?? 0,
-    } as Project,
+    } as unknown as Project,
     feed,
     nextCursor,
     comments,

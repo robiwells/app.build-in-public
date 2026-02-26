@@ -149,72 +149,106 @@ export async function addRepoToProject(
     return { repoId: null, error: "Project not found" };
   }
 
-  // Check if a row already exists for this user + repo (possibly soft-deleted)
-  const { data: existing } = await supabase
-    .from("project_repos")
-    .select("id, active, project_id")
+  // Get or create the user_connector for this installation
+  let { data: connector } = await supabase
+    .from("user_connectors")
+    .select("id")
     .eq("user_id", userId)
-    .eq("repo_full_name", params.repoFullName)
+    .eq("type", "github")
+    .eq("external_id", String(params.installationId))
+    .maybeSingle();
+
+  if (!connector) {
+    const { data: newConnector, error: connectorError } = await supabase
+      .from("user_connectors")
+      .insert({ user_id: userId, type: "github", external_id: String(params.installationId) })
+      .select("id")
+      .single();
+    if (connectorError || !newConnector) {
+      console.error("[projects] connector insert failed", { connectorError, userId });
+      return { repoId: null, error: connectorError?.message ?? "Connector error" };
+    }
+    connector = newConnector;
+  }
+
+  // Check if a row already exists for this project + repo (possibly soft-deleted)
+  const { data: existing } = await supabase
+    .from("project_connector_sources")
+    .select("id, active")
+    .eq("project_id", projectId)
+    .eq("connector_type", "github")
+    .eq("external_id", params.repoFullName)
     .maybeSingle();
 
   if (existing) {
     if (existing.active) {
       return { repoId: null, error: "This repo is already tracked" };
     }
-    // Re-activate and move to the target project
+    // Re-activate and update connector reference
     const { error } = await supabase
-      .from("project_repos")
+      .from("project_connector_sources")
       .update({
         active: true,
-        project_id: projectId,
-        installation_id: params.installationId,
-        repo_url: params.repoUrl,
+        user_connector_id: connector.id,
+        url: params.repoUrl,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
     if (error) {
-      console.error("[projects] re-activate repo failed", { error, projectId, userId });
+      console.error("[projects] re-activate connector source failed", { error, projectId, userId });
       return { repoId: null, error: error.message };
     }
     return { repoId: existing.id, error: null };
   }
 
   const { data, error } = await supabase
-    .from("project_repos")
+    .from("project_connector_sources")
     .insert({
       project_id: projectId,
-      user_id: userId,
-      installation_id: params.installationId,
-      repo_full_name: params.repoFullName,
-      repo_url: params.repoUrl,
+      user_connector_id: connector.id,
+      connector_type: "github",
+      external_id: params.repoFullName,
+      display_name: params.repoFullName,
+      url: params.repoUrl,
     })
     .select("id")
     .single();
 
   if (error) {
-    console.error("[projects] add repo failed", { error, projectId, userId });
+    console.error("[projects] add connector source failed", { error, projectId, userId });
     return { repoId: null, error: error.message };
   }
   return { repoId: data.id, error: null };
 }
 
 export async function removeRepoFromProject(
-  repoId: string,
+  sourceId: string,
   projectId: string,
   userId: string
 ): Promise<{ error: string | null }> {
   const supabase = createSupabaseAdmin();
 
-  // Soft-delete so historical activity posts retain their repo info.
-  const { error } = await supabase
-    .from("project_repos")
-    .update({ active: false, updated_at: new Date().toISOString() })
-    .eq("id", repoId)
-    .eq("project_id", projectId)
+  // Resolve user's connector IDs to verify ownership before soft-delete.
+  const { data: userConnectors } = await supabase
+    .from("user_connectors")
+    .select("id")
     .eq("user_id", userId);
 
+  const connectorIds = (userConnectors ?? []).map((c) => c.id);
+  if (connectorIds.length === 0) {
+    return { error: "No connectors found for user" };
+  }
+
+  // Soft-delete so historical activity posts retain their connector_source_id.
+  const { error } = await supabase
+    .from("project_connector_sources")
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq("id", sourceId)
+    .eq("project_id", projectId)
+    .in("user_connector_id", connectorIds);
+
   if (error) {
-    console.error("[projects] remove repo failed", { error, repoId, projectId, userId });
+    console.error("[projects] remove connector source failed", { error, sourceId, projectId, userId });
     return { error: error.message };
   }
   return { error: null };

@@ -14,7 +14,7 @@ export async function GET() {
   }
 
   const supabase = createSupabaseAdmin();
-  const { data: projects, error } = await supabase
+  const { data: rawProjects, error } = await supabase
     .from("projects")
     .select(
       `
@@ -24,12 +24,13 @@ export async function GET() {
       url,
       slug,
       active,
-      project_repos!left(id, repo_full_name, repo_url, installation_id, active)
+      project_connector_sources!left(id, external_id, url, active, connector_type, user_connectors!inner(external_id))
     `
     )
     .eq("user_id", user.userId)
     .eq("active", true)
-    .eq("project_repos.active", true)
+    .eq("project_connector_sources.connector_type", "github")
+    .eq("project_connector_sources.active", true)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -37,5 +38,20 @@ export async function GET() {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ projects: projects ?? [] });
+  // Remap to backward-compatible shape expected by the client
+  const projects = (rawProjects ?? []).map((p) => {
+    const { project_connector_sources: sources, ...rest } = p as Record<string, unknown>;
+    return {
+      ...rest,
+      project_repos: ((sources as Array<Record<string, unknown>>) ?? []).map((s) => ({
+        id: s.id,
+        repo_full_name: s.external_id,
+        repo_url: s.url,
+        installation_id: parseInt(((s.user_connectors as Record<string, unknown>)?.external_id as string) ?? "0", 10),
+        active: s.active,
+      })),
+    };
+  });
+
+  return NextResponse.json({ projects });
 }

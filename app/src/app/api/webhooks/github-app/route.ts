@@ -56,13 +56,29 @@ export async function POST(request: Request) {
     const body = payload as { action?: string; installation?: { id?: number } };
     if (body.action === "deleted" && typeof body.installation?.id === "number") {
       const supabase = createSupabaseAdmin();
-      // Deactivate repos tied to this installation
-      const { error } = await supabase
-        .from("project_repos")
-        .update({ active: false, updated_at: new Date().toISOString() })
-        .eq("installation_id", body.installation.id);
-      if (error) {
-        console.error("[webhook] installation delete deactivation failed", { error, installationId: body.installation.id, deliveryId });
+      const installationIdStr = String(body.installation.id);
+      // Deactivate the user_connector and all its project sources
+      const { data: connector } = await supabase
+        .from("user_connectors")
+        .select("id")
+        .eq("type", "github")
+        .eq("external_id", installationIdStr)
+        .maybeSingle();
+      if (connector) {
+        const { error: connectorError } = await supabase
+          .from("user_connectors")
+          .update({ active: false })
+          .eq("id", connector.id);
+        if (connectorError) {
+          console.error("[webhook] connector deactivation failed", { error: connectorError, installationId: body.installation.id, deliveryId });
+        }
+        const { error: sourcesError } = await supabase
+          .from("project_connector_sources")
+          .update({ active: false, updated_at: new Date().toISOString() })
+          .eq("user_connector_id", connector.id);
+        if (sourcesError) {
+          console.error("[webhook] connector sources deactivation failed", { error: sourcesError, installationId: body.installation.id, deliveryId });
+        }
       }
     }
   }

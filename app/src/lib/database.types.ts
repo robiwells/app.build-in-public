@@ -152,6 +152,8 @@ export interface Database {
           user_id: string;
           project_id: string | null;
           project_repo_id: string | null;
+          connector_source_id: string | null;
+          connector_metadata: Json | null;
           date_utc: string;
           type: string;
           content_text: string | null;
@@ -172,6 +174,8 @@ export interface Database {
           user_id: string;
           project_id?: string | null;
           project_repo_id?: string | null;
+          connector_source_id?: string | null;
+          connector_metadata?: Json | null;
           date_utc: string;
           type?: string;
           content_text?: string | null;
@@ -192,6 +196,8 @@ export interface Database {
           user_id?: string;
           project_id?: string | null;
           project_repo_id?: string | null;
+          connector_source_id?: string | null;
+          connector_metadata?: Json | null;
           date_utc?: string;
           type?: string;
           content_text?: string | null;
@@ -427,6 +433,98 @@ export interface Database {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      user_connectors: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: string;
+          external_id: string;
+          display_name: string | null;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: string;
+          external_id: string;
+          display_name?: string | null;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: string;
+          external_id?: string;
+          display_name?: string | null;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_connectors_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      project_connector_sources: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_connector_id: string;
+          connector_type: string;
+          external_id: string;
+          display_name: string | null;
+          url: string | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_connector_id: string;
+          connector_type: string;
+          external_id: string;
+          display_name?: string | null;
+          url?: string | null;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_connector_id?: string;
+          connector_type?: string;
+          external_id?: string;
+          display_name?: string | null;
+          url?: string | null;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_connector_sources_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_connector_sources_user_connector_id_fkey";
+            columns: ["user_connector_id"];
+            isOneToOne: false;
+            referencedRelation: "user_connectors";
             referencedColumns: ["id"];
           }
         ];

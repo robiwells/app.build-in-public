@@ -60,31 +60,36 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
 
   const supabase = createSupabaseAdmin();
 
-  // Look up repo in project_repos (V2 schema)
+  // Look up connector source in project_connector_sources (generic connector layer)
   const pattern = repoFullName
     .replace(/\\/g, "\\\\")
     .replace(/%/g, "\\%")
     .replace(/_/g, "\\_");
 
-  const { data: projectRepo, error: repoError } = await supabase
-    .from("project_repos")
-    .select("id, project_id, user_id")
+  const { data: connectorSource, error: sourceError } = await supabase
+    .from("project_connector_sources")
+    .select("id, project_id, user_connectors!inner(user_id)")
     .eq("active", true)
-    .ilike("repo_full_name", pattern)
+    .eq("connector_type", "github")
+    .ilike("external_id", pattern)
     .maybeSingle();
 
-  if (repoError) {
-    console.error("[activity] project_repo lookup failed", { error: repoError, repo: repoFullName, deliveryId });
+  if (sourceError) {
+    console.error("[activity] connector_source lookup failed", { error: sourceError, repo: repoFullName, deliveryId });
     return;
   }
 
-  if (!projectRepo) return;
+  if (!connectorSource) return;
+
+  const userId = (connectorSource.user_connectors as { user_id: string }).user_id;
+  const projectId = connectorSource.project_id;
+  const connectorSourceId = connectorSource.id;
 
   // Fetch user timezone
   const { data: userRow } = await supabase
     .from("users")
     .select("timezone")
-    .eq("id", projectRepo.user_id)
+    .eq("id", userId)
     .maybeSingle();
   const timezone = userRow?.timezone ?? "UTC";
 
@@ -100,14 +105,13 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
 
   for (const [dateUtc, { first, last, count, messages: newMessages }] of byDate) {
     const githubLink = commitEntries.length === 1 ? (lastCommit?.url ?? compareUrl) : compareUrl;
-    // Compute date_local based on the push timestamp (use first commit time for this UTC date)
     const dateLocal = getLocalDateForTimestamp(first, timezone);
 
     const { data: existing, error: readError } = await supabase
       .from("activities")
       .select("commit_count, first_commit_at, last_commit_at, commit_messages")
-      .eq("user_id", projectRepo.user_id)
-      .eq("project_id", projectRepo.project_id)
+      .eq("user_id", userId)
+      .eq("project_id", projectId)
       .eq("date_utc", dateUtc)
       .eq("type", "auto_github")
       .maybeSingle();
@@ -125,18 +129,28 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
     const existingMessages: string[] = existing?.commit_messages ?? [];
     const commitMessages = [...new Set([...existingMessages, ...newMessages])];
 
+    const connectorMetadata = {
+      commit_count: commitCount,
+      commit_messages: commitMessages,
+      github_link: githubLink,
+      first_commit_at: firstCommitAt.toISOString(),
+      last_commit_at: lastCommitAt.toISOString(),
+    };
+
     const row = {
-      user_id: projectRepo.user_id,
-      project_id: projectRepo.project_id,
-      project_repo_id: projectRepo.id,
+      user_id: userId,
+      project_id: projectId,
+      connector_source_id: connectorSourceId,
       date_utc: dateUtc,
       type: "auto_github" as const,
       date_local: dateLocal,
+      // Keep writing to legacy columns during transition
       commit_count: commitCount,
       first_commit_at: firstCommitAt.toISOString(),
       last_commit_at: lastCommitAt.toISOString(),
       github_link: githubLink,
       commit_messages: commitMessages,
+      connector_metadata: connectorMetadata,
       updated_at: new Date().toISOString(),
     };
 
@@ -144,17 +158,18 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
       const { error: updateError } = await supabase
         .from("activities")
         .update({
-          project_repo_id: row.project_repo_id,
+          connector_source_id: row.connector_source_id,
           date_local: row.date_local,
           commit_count: row.commit_count,
           first_commit_at: row.first_commit_at,
           last_commit_at: row.last_commit_at,
           github_link: row.github_link,
           commit_messages: row.commit_messages,
+          connector_metadata: row.connector_metadata,
           updated_at: row.updated_at,
         })
-        .eq("user_id", projectRepo.user_id)
-        .eq("project_id", projectRepo.project_id)
+        .eq("user_id", userId)
+        .eq("project_id", projectId)
         .eq("date_utc", dateUtc)
         .eq("type", "auto_github");
 
