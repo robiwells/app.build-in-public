@@ -189,14 +189,6 @@ export function ProjectCard({
                       >
                         ×
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => openModal(repo.connector_type)}
-                        className="shrink-0 text-xs text-[#a8a29e] hover:text-[#2a1f14]"
-                        aria-label="Add another"
-                      >
-                        +
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -237,6 +229,9 @@ export function ProjectCard({
               onUpdated?.();
             }}
             onClose={() => setModalOpen(false)}
+            existingRepoFullNames={project.project_repos
+              .filter((r) => r.connector_type !== "medium")
+              .map((r) => r.repo_full_name)}
           />
         )}
       </>

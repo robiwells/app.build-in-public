@@ -23,12 +23,15 @@ export function ConnectorModal({
   filterType,
   onAdded,
   onClose,
+  /** When editing, full_names of repos already linked to the project (so they appear pre-selected). */
+  existingRepoFullNames,
 }: {
   /** When undefined, modal is in "create" mode: returns selection via onAdded instead of POSTing. */
   projectId?: string;
   filterType?: string;
   onAdded: (selection?: PendingConnectorSelection) => void;
   onClose: () => void;
+  existingRepoFullNames?: string[];
 }) {
   const isCreateMode = projectId === undefined;
   const [step, setStep] = useState<Step>("pick-service");
@@ -69,14 +72,23 @@ export function ConnectorModal({
       setGithubAvailable([]);
       setGithubSelected(new Set());
       setGithubError("");
-      const url = isCreateMode
-        ? "/api/repos/available"
-        : `/api/repos/available?projectId=${encodeURIComponent(projectId!)}`;
+      const url =
+        isCreateMode || projectId === undefined
+          ? "/api/repos/available"
+          : `/api/repos/available?projectId=${encodeURIComponent(projectId!)}`;
       fetch(url)
         .then((r) => (r.ok ? r.json() : { repos: [] }))
-        .then((data: { repos?: AvailableRepo[] }) =>
-          setGithubAvailable(data.repos ?? [])
-        )
+        .then((data: { repos?: AvailableRepo[] }) => {
+          const repos = data.repos ?? [];
+          setGithubAvailable(repos);
+          if (existingRepoFullNames?.length) {
+            setGithubSelected(
+              new Set(repos.filter((r) => existingRepoFullNames.includes(r.full_name)).map((r) => r.full_name))
+            );
+          } else {
+            setGithubSelected(new Set());
+          }
+        })
         .catch(() => setGithubAvailable([]))
         .finally(() => setGithubLoading(false));
     } else if (connector.type === "medium") {
@@ -102,10 +114,20 @@ export function ConnectorModal({
       onClose();
       return;
     }
+    // When editing, only POST repos not already on the project (pre-selected are for display)
+    const newRepos =
+      existingRepoFullNames?.length
+        ? toAdd.filter((r) => !existingRepoFullNames.includes(r.full_name))
+        : toAdd;
+    if (newRepos.length === 0) {
+      onAdded();
+      onClose();
+      return;
+    }
     setGithubSaving(true);
     setGithubError("");
     try {
-      for (const repo of toAdd) {
+      for (const repo of newRepos) {
         const res = await fetch(`/api/projects/${projectId}/repos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

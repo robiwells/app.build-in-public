@@ -22,7 +22,7 @@ export function SignInModal() {
         onClick={() => setOpen(true)}
         className="rounded-full bg-[#b5522a] px-4 py-2 text-sm font-medium text-white hover:bg-[#9a4522]"
       >
-        Sign in with GitHub
+        Sign in
       </button>
 
       {open && (
@@ -62,7 +62,7 @@ export function SignInModal() {
                 Sign in to get started
               </h2>
               <p className="mt-1 text-sm text-[#78716c]">
-                Track your public commits on GitHub
+                Sign in to help you keep creating one day at a time
               </p>
             </div>
 
