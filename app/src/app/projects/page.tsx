@@ -34,6 +34,25 @@ export default async function ProjectsPage({ searchParams }: Props) {
 
   const { data: projects } = await query;
 
+  // Build map of project_id -> Medium display URL (for projects with Medium connector, when project.url is not set)
+  const mediumDisplayUrlByProjectId = new Map<string, string>();
+  if (projects && projects.length > 0) {
+    const projectIds = projects.map((p) => p.id);
+    const { data: mediumSources } = await supabase
+      .from("project_connector_sources")
+      .select("project_id, external_id")
+      .in("project_id", projectIds)
+      .eq("connector_type", "medium")
+      .eq("active", true);
+    for (const row of mediumSources ?? []) {
+      const pid = row.project_id as string;
+      const extId = row.external_id as string;
+      if (!mediumDisplayUrlByProjectId.has(pid)) {
+        mediumDisplayUrlByProjectId.set(pid, `https://medium.com/${extId}`);
+      }
+    }
+  }
+
   // Build set of project IDs hearted by the current user
   let heartedSet = new Set<string>();
   if (sessionUserId && projects && projects.length > 0) {
@@ -107,6 +126,9 @@ export default async function ProjectsPage({ searchParams }: Props) {
                   )
                 : null;
 
+            const displayUrl =
+              project.url ?? mediumDisplayUrlByProjectId.get(project.id) ?? null;
+
             if (isOwner) {
               return (
                 <EditableProjectCard
@@ -117,7 +139,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
                     id: project.id,
                     title: project.title,
                     description: project.description,
-                    url: project.url,
+                    url: displayUrl,
                     slug: project.slug,
                     category: project.category,
                     level: project.level ?? 1,
@@ -135,6 +157,8 @@ export default async function ProjectsPage({ searchParams }: Props) {
             const projectHref = username
               ? `/u/${username}/projects/${project.slug ?? project.id}`
               : null;
+            const cardDisplayUrl =
+              project.url ?? mediumDisplayUrlByProjectId.get(project.id) ?? null;
 
             return (
               <div
@@ -184,14 +208,14 @@ export default async function ProjectsPage({ searchParams }: Props) {
                         @{username}
                       </Link>
                     )}
-                    {project.url && (
+                    {cardDisplayUrl && (
                       <a
-                        href={project.url}
+                        href={cardDisplayUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="max-w-[55%] truncate text-xs text-[#b5522a] hover:underline"
                       >
-                        {project.url.replace(/^https?:\/\//, "")}
+                        {cardDisplayUrl.replace(/^https?:\/\//, "")}
                       </a>
                     )}
                   </div>

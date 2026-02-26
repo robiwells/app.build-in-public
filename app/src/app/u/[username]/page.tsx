@@ -235,48 +235,52 @@ export default async function UserPage({
             Projects
           </h2>
           <div className="space-y-3">
-            {projects.map((p) => (
-              <Link key={p.id} href={`/u/${username}/projects/${p.slug?.trim() ? p.slug : p.id}`}>
-                <div className="card rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-[#2a1f14]">
-                      {p.title}
-                    </h3>
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                      Level {p.level}
-                    </span>
-                  </div>
-                  {p.description && (
-                    <p className="mt-1 text-sm text-[#78716c]">
-                      {p.description}
-                    </p>
-                  )}
-                  {p.url && (
-                    <p className="mt-1 text-sm text-[#a8a29e]">
-                      {p.url}
-                    </p>
-                  )}
-                  {p.project_repos.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {p.project_repos.map((repo) => (
-                        <p
-                          key={repo.id}
-                          className="block rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm text-[#78716c]"
-                        >
-                          {repo.repo_full_name}
-                        </p>
-                      ))}
+            {projects.map((p) => {
+              const displayUrl =
+                p.url ?? (p.project_repos?.[0] as { repo_url?: string } | undefined)?.repo_url ?? null;
+              return (
+                <Link key={p.id} href={`/u/${username}/projects/${p.slug?.trim() ? p.slug : p.id}`}>
+                  <div className="card rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-[#2a1f14]">
+                        {p.title}
+                      </h3>
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        Level {p.level}
+                      </span>
                     </div>
-                  )}
-                  <div className="mt-3 overflow-hidden rounded-full bg-[#e8ddd0]" style={{ height: "6px" }}>
-                    <div
-                      className="h-full rounded-full bg-amber-400"
-                      style={{ width: `${levelProgressPct(p.xp, p.level)}%` }}
-                    />
+                    {p.description && (
+                      <p className="mt-1 text-sm text-[#78716c]">
+                        {p.description}
+                      </p>
+                    )}
+                    {displayUrl && (
+                      <p className="mt-1 text-sm text-[#b5522a]">
+                        {displayUrl.replace(/^https?:\/\//, "")}
+                      </p>
+                    )}
+                    {p.project_repos.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {p.project_repos.map((repo) => (
+                          <p
+                            key={repo.id}
+                            className="block rounded-lg bg-[#f5f0e8] px-3 py-1.5 text-sm text-[#78716c]"
+                          >
+                            {repo.repo_full_name}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 overflow-hidden rounded-full bg-[#e8ddd0]" style={{ height: "6px" }}>
+                      <div
+                        className="h-full rounded-full bg-amber-400"
+                        style={{ width: `${levelProgressPct(p.xp, p.level)}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </section>
       ) : null}
