@@ -1,7 +1,6 @@
 # Future Roadmap
 
 ## 1.1 Gamification & "Progress Engine"
-Project Leveling: Projects (not just users) gain XP. Every 5 days of activity "Levels Up" the project, turning a "Seedling" project into a "Mighty Oak."
 The Time Capsule: An automated monthly "Then vs. Now" generator. It pairs the user’s first post with their most recent to visualize 30 days of 5-minute increments.
 Consistency Badges: Specialized achievements for specific behavior patterns:
 Night Owl: 7 consecutive posts after 10:00 PM UTC.

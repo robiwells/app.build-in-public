@@ -29,7 +29,6 @@ export async function GET() {
     )
     .eq("user_id", user.userId)
     .eq("active", true)
-    .eq("project_connector_sources.connector_type", "github")
     .eq("project_connector_sources.active", true)
     .order("created_at", { ascending: false });
 
@@ -45,8 +44,11 @@ export async function GET() {
       ...rest,
       project_repos: ((sources as Array<Record<string, unknown>>) ?? []).map((s) => ({
         id: s.id,
+        connector_type: s.connector_type,
         repo_full_name: s.external_id,
-        repo_url: s.url,
+        repo_url: s.connector_type === "medium"
+          ? `https://medium.com/${s.external_id as string}`
+          : s.url,
         installation_id: parseInt(((s.user_connectors as Record<string, unknown>)?.external_id as string) ?? "0", 10),
         active: s.active,
       })),

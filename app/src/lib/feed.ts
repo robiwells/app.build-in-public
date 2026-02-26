@@ -79,6 +79,7 @@ function mapRow(
       hearts_count: row.hearts_count as number | undefined,
       comments_count: row.comments_count as number | undefined,
       hearted: id ? heartedSet.has(id) : false,
+      connector_metadata: row.connector_metadata as Record<string, unknown> | null | undefined,
     },
   };
 
@@ -106,7 +107,7 @@ export async function queryFeed(opts: FeedQueryOpts): Promise<{
     .select(
       `id, date_utc, type, content_text, content_image_url, commit_count,
        first_commit_at, last_commit_at, github_link, commit_messages,
-       hearts_count, comments_count, user_id, project_id,
+       hearts_count, comments_count, user_id, project_id, connector_metadata,
        users!inner(id, username, avatar_url),
        projects(id, title, slug, active, category),
        project_connector_sources(external_id, url)`
@@ -160,7 +161,7 @@ export async function queryUserFeed(
     .select(
       `id, date_utc, type, content_text, content_image_url, commit_count,
        first_commit_at, last_commit_at, github_link, commit_messages,
-       hearts_count, comments_count, project_id,
+       hearts_count, comments_count, project_id, connector_metadata,
        projects(id, title, slug, active),
        project_connector_sources(external_id, url)`
     )

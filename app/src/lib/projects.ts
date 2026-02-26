@@ -52,6 +52,109 @@ export interface AddRepoParams {
   installationId: number;
 }
 
+export interface AddConnectorSourceParams {
+  connectorType: string;
+  externalId: string;
+  url: string;
+  displayName: string | null;
+}
+
+export async function addConnectorSource(
+  projectId: string,
+  userId: string,
+  params: AddConnectorSourceParams
+): Promise<{ sourceId: string | null; error: string | null }> {
+  const supabase = createSupabaseAdmin();
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (!project) {
+    return { sourceId: null, error: "Project not found" };
+  }
+
+  // Get or create user_connectors row for this connector type + external_id
+  let { data: connector } = await supabase
+    .from("user_connectors")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("type", params.connectorType)
+    .eq("external_id", params.externalId)
+    .maybeSingle();
+
+  if (!connector) {
+    const { data: newConnector, error: connectorError } = await supabase
+      .from("user_connectors")
+      .insert({
+        user_id: userId,
+        type: params.connectorType,
+        external_id: params.externalId,
+        display_name: params.displayName,
+      })
+      .select("id")
+      .single();
+    if (connectorError || !newConnector) {
+      console.error("[projects] connector insert failed", { connectorError, userId });
+      return { sourceId: null, error: connectorError?.message ?? "Connector error" };
+    }
+    connector = newConnector;
+  }
+
+  // Check if a source row already exists (possibly soft-deleted)
+  const { data: existing } = await supabase
+    .from("project_connector_sources")
+    .select("id, active")
+    .eq("project_id", projectId)
+    .eq("connector_type", params.connectorType)
+    .eq("external_id", params.externalId)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.active) {
+      return { sourceId: null, error: "This source is already tracked" };
+    }
+    const { error } = await supabase
+      .from("project_connector_sources")
+      .update({
+        active: true,
+        user_connector_id: connector.id,
+        url: params.url,
+        display_name: params.displayName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+    if (error) {
+      console.error("[projects] re-activate connector source failed", { error, projectId });
+      return { sourceId: null, error: error.message };
+    }
+    return { sourceId: existing.id, error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("project_connector_sources")
+    .insert({
+      project_id: projectId,
+      user_connector_id: connector.id,
+      connector_type: params.connectorType,
+      external_id: params.externalId,
+      display_name: params.displayName ?? params.externalId,
+      url: params.url,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[projects] add connector source failed", { error, projectId, userId });
+    return { sourceId: null, error: error.message };
+  }
+  return { sourceId: data.id, error: null };
+}
+
 export async function createProject(
   userId: string,
   params: CreateProjectParams

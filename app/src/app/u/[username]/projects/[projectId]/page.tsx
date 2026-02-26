@@ -50,6 +50,7 @@ type FeedItem = {
     last_commit_at?: string | null;
     github_link?: string | null;
     commit_messages?: string[] | null;
+    connector_metadata?: Record<string, unknown> | null;
   };
 };
 
@@ -101,7 +102,6 @@ async function getProjectData(
     .eq("user_id", user.id)
     .eq(byId ? "id" : "slug", slugOrId)
     .eq("active", true)
-    .eq("project_connector_sources.connector_type", "github")
     .eq("project_connector_sources.active", true)
     .maybeSingle();
 
@@ -113,8 +113,13 @@ async function getProjectData(
           ...rest,
           project_repos: ((sources as Array<Record<string, unknown>>) ?? []).map((s) => ({
             id: s.id,
-            repo_full_name: s.external_id,
-            repo_url: s.url,
+            connector_type: s.connector_type,
+            repo_full_name: s.connector_type === "medium"
+              ? `Medium: ${s.external_id as string}`
+              : s.external_id,
+            repo_url: s.connector_type === "medium"
+              ? `https://medium.com/${s.external_id as string}`
+              : s.url,
             active: s.active,
           })),
         } as unknown as typeof rawProject;
@@ -139,6 +144,7 @@ async function getProjectData(
       last_commit_at,
       github_link,
       commit_messages,
+      connector_metadata,
       project_connector_sources(external_id, url)
     `
     )
@@ -181,6 +187,7 @@ async function getProjectData(
         last_commit_at: row.last_commit_at as string | null | undefined,
         github_link: row.github_link as string | null | undefined,
         commit_messages: row.commit_messages as string[] | null | undefined,
+        connector_metadata: row.connector_metadata as Record<string, unknown> | null | undefined,
       },
     };
   });

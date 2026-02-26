@@ -9,6 +9,7 @@ type Repo = {
   id: string;
   repo_full_name: string;
   repo_url: string;
+  connector_type?: string;
 };
 
 type Project = {
@@ -47,6 +48,9 @@ export function ProjectCard({
   const [availableRepos, setAvailableRepos] = useState<AvailableRepo[]>([]);
   const [reposLoading, setReposLoading] = useState(false);
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
+  const [mediumInput, setMediumInput] = useState("");
+  const [mediumSaving, setMediumSaving] = useState(false);
+  const [mediumError, setMediumError] = useState("");
 
   useEffect(() => {
     if (!editing || !editable) return;
@@ -146,6 +150,31 @@ export function ProjectCard({
     }
   }
 
+  async function handleAddMedium(e: React.FormEvent) {
+    e.preventDefault();
+    if (!mediumInput.trim()) return;
+    setMediumSaving(true);
+    setMediumError("");
+    try {
+      const res = await fetch(`/api/projects/${project.id}/sources`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connector_type: "medium", external_id: mediumInput.trim() }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) {
+        setMediumError(data.error ?? "Failed to add Medium feed");
+        return;
+      }
+      setMediumInput("");
+      onUpdated?.();
+    } catch {
+      setMediumError("Request failed");
+    } finally {
+      setMediumSaving(false);
+    }
+  }
+
   if (editing) {
     return (
       <div className="card rounded-xl p-4">
@@ -226,6 +255,32 @@ export function ProjectCard({
                 {selectedRepos.size} repo{selectedRepos.size !== 1 ? "s" : ""} selected
               </p>
             )}
+          </div>
+          {/* Medium feed link */}
+          <div>
+            <label className="block text-sm font-medium text-[#2a1f14]">
+              Link Medium feed
+            </label>
+            <p className="mb-2 text-xs text-[#a8a29e]">
+              Add a Medium username or publication slug to import articles.
+            </p>
+            <form onSubmit={handleAddMedium} className="flex gap-2">
+              <input
+                type="text"
+                value={mediumInput}
+                onChange={(e) => setMediumInput(e.target.value)}
+                placeholder="@username or publication-slug"
+                className="min-w-0 flex-1 rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
+              />
+              <button
+                type="submit"
+                disabled={mediumSaving || !mediumInput.trim()}
+                className="shrink-0 rounded-full bg-[#b5522a] px-3 py-2 text-sm font-medium text-white hover:bg-[#9a4522] disabled:opacity-50"
+              >
+                {mediumSaving ? "…" : "Add"}
+              </button>
+            </form>
+            {mediumError && <p className="mt-1 text-xs text-red-600">{mediumError}</p>}
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
@@ -325,7 +380,9 @@ export function ProjectCard({
                 rel="noopener noreferrer"
                 className="truncate text-[#78716c] hover:underline"
               >
-                {repo.repo_full_name}
+                {repo.connector_type === "medium"
+                  ? `Medium: ${repo.repo_full_name}`
+                  : repo.repo_full_name}
               </a>
               {editable && (
                 <button
@@ -341,7 +398,7 @@ export function ProjectCard({
       )}
       {project.project_repos.length === 0 && (
         <p className="mt-3 text-sm text-[#a8a29e]">
-          No repos tracked yet
+          No sources tracked yet
         </p>
       )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { createInstallState } from "@/lib/github-app";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import { MediumConnector } from "@/components/MediumConnector";
 
 export default async function ConnectorsPage() {
   const session = await auth();
@@ -22,6 +23,15 @@ export default async function ConnectorsPage() {
     .eq("active", true)
     .limit(1);
   const isConnected = (connectors?.length ?? 0) > 0;
+
+  const { data: mediumConnectors } = await supabase
+    .from("user_connectors")
+    .select("id, external_id, display_name")
+    .eq("user_id", user.userId)
+    .eq("type", "medium")
+    .eq("active", true)
+    .limit(1);
+  const mediumConnector = mediumConnectors?.[0] ?? null;
 
   const appSlug = process.env.GITHUB_APP_SLUG;
   const installAppUrl =
@@ -44,6 +54,7 @@ export default async function ConnectorsPage() {
         Connect services to automatically track progress across your projects.
       </p>
 
+      <div className="space-y-4">
       {installAppUrl ? (
         <div className="card w-80 rounded-xl p-4">
           <div className="flex items-center justify-between">
@@ -90,6 +101,12 @@ export default async function ConnectorsPage() {
           Connectors are not configured for this environment.
         </p>
       )}
+
+      <MediumConnector
+        initialConnected={!!mediumConnector}
+        initialDisplayName={mediumConnector?.display_name ?? null}
+      />
+      </div>
     </main>
   );
 }

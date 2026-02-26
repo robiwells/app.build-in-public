@@ -17,5 +17,6 @@ export type FeedItem = {
     hearts_count?: number;
     comments_count?: number;
     hearted?: boolean;
+    connector_metadata?: Record<string, unknown> | null;
   };
 };

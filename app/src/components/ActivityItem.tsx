@@ -19,6 +19,7 @@ type ActivityItemProps = {
     last_commit_at?: string | null;
     github_link?: string | null;
     commit_messages?: string[] | null;
+    connector_metadata?: Record<string, unknown> | null;
   };
   showUser?: boolean;
   showProject?: boolean;
@@ -85,6 +86,7 @@ export function ActivityItem({
 }: ActivityItemProps) {
   const isManual = activity.type === "manual";
   const isMilestone = activity.type === "milestone";
+  const isMedium = activity.type === "auto_medium";
   const dateAsHeader = !showUser && !showProject;
   const count = activity.commit_count ?? 0;
   const repoName = repo?.repo_full_name ?? "repo";
@@ -99,7 +101,7 @@ export function ActivityItem({
     (dateAsHeader && !hideHeader);
 
   return (
-    <article className={`border-b py-4 last:border-0 ${isMilestone ? "border-amber-300" : "border-[#e8ddd0]"}`}>
+    <article className={`border-b py-4 last:border-0 ${isMilestone ? "border-amber-300" : isMedium ? "border-emerald-100" : "border-[#e8ddd0]"}`}>
       <div className="flex items-start gap-3">
         {showUser && user?.avatar_url && (
           <Link href={`/u/${user.username}`} className="shrink-0">
@@ -171,6 +173,63 @@ export function ActivityItem({
                 {!dateAsHeader && formatDate(activity.date_utc)}
                 {activity.last_commit_at && <>{!dateAsHeader && " · "}{formatRelative(activity.last_commit_at)}</>}
               </p>
+            </>
+          ) : isMedium ? (
+            <>
+              <div className="mt-1 flex items-center gap-1.5">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 text-emerald-600">
+                  <path d="M13.54 12a6.8 6.8 0 0 1-6.77 6.82A6.8 6.8 0 0 1 0 12a6.8 6.8 0 0 1 6.77-6.82A6.8 6.8 0 0 1 13.54 12zm7.42 0c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z" />
+                </svg>
+                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Medium</span>
+              </div>
+              {activity.connector_metadata?.title && (
+                <p className="mt-1 font-semibold text-[#2a1f14]">
+                  {activity.connector_metadata.article_url ? (
+                    <a
+                      href={activity.connector_metadata.article_url as string}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-[#b5522a] hover:underline"
+                    >
+                      {activity.connector_metadata.title as string}
+                    </a>
+                  ) : (
+                    activity.connector_metadata.title as string
+                  )}
+                </p>
+              )}
+              {activity.content_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={activity.content_image_url}
+                  alt=""
+                  className="mt-2 max-h-48 max-w-sm rounded-lg object-cover"
+                />
+              )}
+              {activity.content_text && (
+                <p className="mt-1 line-clamp-3 text-sm text-[#78716c]">
+                  {activity.content_text}
+                </p>
+              )}
+              <p className="mt-1 text-sm text-[#a8a29e]">
+                {!dateAsHeader && formatDate(activity.date_utc)}
+                {activity.last_commit_at && <>{!dateAsHeader && " · "}{formatRelative(activity.last_commit_at)}</>}
+                {repo?.repo_full_name && (
+                  <> · via <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="text-[#b5522a] hover:underline">{repo.repo_full_name}</a></>
+                )}
+              </p>
+              {activity.connector_metadata?.article_url && (
+                <div className="mt-2">
+                  <a
+                    href={activity.connector_metadata.article_url as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                  >
+                    Read on Medium →
+                  </a>
+                </div>
+              )}
             </>
           ) : isManual ? (
             <>

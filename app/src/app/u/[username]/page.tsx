@@ -129,7 +129,6 @@ async function getUserData(
     `
     )
     .eq("user_id", user.id)
-    .eq("project_connector_sources.connector_type", "github")
     .eq("project_connector_sources.active", true)
     .eq("active", true)
     .order("created_at", { ascending: false });
@@ -141,8 +140,13 @@ async function getUserData(
       ...rest,
       project_repos: ((sources as Array<Record<string, unknown>>) ?? []).map((s) => ({
         id: s.id,
-        repo_full_name: s.external_id,
-        repo_url: s.url,
+        connector_type: s.connector_type,
+        repo_full_name: s.connector_type === "medium"
+          ? `Medium: ${s.external_id as string}`
+          : s.external_id,
+        repo_url: s.connector_type === "medium"
+          ? `https://medium.com/${s.external_id as string}`
+          : s.url,
         active: s.active,
       })),
     };
