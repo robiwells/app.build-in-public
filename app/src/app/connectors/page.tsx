@@ -75,6 +75,8 @@ export default async function ConnectorsPage() {
           <div className="mt-4">
             <a
               href={installAppUrl}
+              target={isConnected ? "_blank" : undefined}
+              rel={isConnected ? "noopener noreferrer" : undefined}
               className="inline-block rounded-full bg-[#b5522a] px-4 py-2 text-sm font-medium text-white hover:bg-[#9a4522]"
             >
               {isConnected ? "Reconfigure" : "Connect GitHub"}
