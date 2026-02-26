@@ -108,9 +108,9 @@ export default async function HomePage({
 
       {sessionUser?.userId && sessionUserData && (
         <Composer
-          userId={sessionUser.userId}
           projects={sessionUserData.projects}
           timezone={sessionUserData.timezone}
+          profileUsername={sessionUserData.username}
         />
       )}
 

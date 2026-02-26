@@ -23,7 +23,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "content_text is required" }, { status: 400 });
   }
 
-  const projectId = typeof body.project_id === "string" ? body.project_id : null;
+  const projectIdRaw = typeof body.project_id === "string" ? body.project_id.trim() : "";
+  if (!projectIdRaw) {
+    return NextResponse.json({ error: "project_id is required" }, { status: 400 });
+  }
+
+  const supabase = createSupabaseAdmin();
+
+  // Ensure the project exists and belongs to the user
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectIdRaw)
+    .eq("user_id", userId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (projectError || !project) {
+    return NextResponse.json({ error: "Project not found or you don't have access" }, { status: 400 });
+  }
+
+  const projectId = project.id;
   const contentImageUrl = typeof body.content_image_url === "string" ? body.content_image_url : null;
 
   const rawType = typeof body.type === "string" ? body.type : "manual";
@@ -31,8 +51,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   }
   const activityType: "manual" | "milestone" = rawType;
-
-  const supabase = createSupabaseAdmin();
 
   // Fetch user timezone
   const { data: userRow } = await supabase

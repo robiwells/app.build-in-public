@@ -1,23 +1,34 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import imageCompression from "browser-image-compression";
 
 type Project = { id: string; title: string };
 
 type ComposerProps = {
-  userId: string;
   projects: Project[];
   timezone: string;
+  /** For "create a project" link when user has no projects */
+  profileUsername?: string | null;
   onPosted?: () => void;
 };
 
-export function Composer({ projects, timezone, onPosted }: ComposerProps) {
+export function Composer({ projects, timezone, profileUsername, onPosted }: ComposerProps) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [postType, setPostType] = useState<"manual" | "milestone">("manual");
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState(() => projects[0]?.id ?? "");
+
+  // Keep projectId in sync when projects list changes (e.g. user creates first project)
+  useEffect(() => {
+    if (projects.length === 0) return;
+    const ids = new Set(projects.map((p) => p.id));
+    if (!projectId || !ids.has(projectId)) {
+      setProjectId(projects[0].id);
+    }
+  }, [projects, projectId]);
+
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -87,7 +98,7 @@ export function Composer({ projects, timezone, onPosted }: ComposerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content_text: text.trim(),
-          project_id: projectId || undefined,
+          project_id: projectId,
           content_image_url: contentImageUrl,
           type: postType,
         }),
@@ -100,7 +111,7 @@ export function Composer({ projects, timezone, onPosted }: ComposerProps) {
       }
 
       setText("");
-      setProjectId("");
+      setProjectId(projects[0]?.id ?? "");
       clearImage();
       onPosted?.();
       router.refresh();
@@ -112,6 +123,25 @@ export function Composer({ projects, timezone, onPosted }: ComposerProps) {
   }
 
   const isLoading = submitting || uploading;
+  const hasProjects = projects.length > 0;
+  const canSubmit = hasProjects && projectId && text.trim();
+
+  if (!hasProjects) {
+    const profileHref = profileUsername ? `/u/${profileUsername}` : "/";
+    return (
+      <div className="card mb-6 p-4">
+        <p className="text-sm text-[#78716c]">
+          Create a project to start posting. All posts are linked to a project.
+        </p>
+        <a
+          href={profileHref}
+          className="mt-3 inline-block text-sm font-medium text-[#b5522a] hover:underline"
+        >
+          {profileUsername ? "Go to your profile →" : "Create a project →"}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -172,21 +202,19 @@ export function Composer({ projects, timezone, onPosted }: ComposerProps) {
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {projects.length > 0 && (
-          <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            className="rounded-lg border border-[#e8ddd0] bg-white px-2 py-1 text-sm text-[#2a1f14]"
-            disabled={isLoading}
-          >
-            <option value="">No project</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title}
-              </option>
-            ))}
-          </select>
-        )}
+        <select
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+          className="rounded-lg border border-[#e8ddd0] bg-white px-2 py-1 text-sm text-[#2a1f14]"
+          disabled={isLoading}
+          required
+        >
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.title}
+            </option>
+          ))}
+        </select>
 
         <label className="cursor-pointer rounded-lg border border-[#e8ddd0] bg-white px-2 py-1 text-sm text-[#78716c] hover:border-[#c9b99a]">
           <input
@@ -202,7 +230,7 @@ export function Composer({ projects, timezone, onPosted }: ComposerProps) {
 
         <button
           type="submit"
-          disabled={isLoading || !text.trim()}
+          disabled={isLoading || !canSubmit}
           className={`ml-auto rounded-full px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
             postType === "milestone"
               ? "bg-amber-600 hover:bg-amber-700"
