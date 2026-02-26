@@ -1,5 +1,4 @@
 import { createSupabaseAdmin } from "@/lib/supabase";
-import { incrementStreakAtomic } from "@/lib/streak";
 
 type PushPayload = {
   repository?: { full_name?: string; html_url?: string };
@@ -171,8 +170,5 @@ export async function processPushEvent(payload: unknown, deliveryId?: string): P
         continue;
       }
     }
-
-    // Update streak atomically
-    await incrementStreakAtomic(projectRepo.user_id, dateLocal);
   }
 }

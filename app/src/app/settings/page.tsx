@@ -55,7 +55,7 @@ export default async function SettingsPage() {
           Timezone
         </h2>
         <p className="mb-3 text-sm text-[#78716c]">
-          Used to compute your local day for streak tracking.
+          Used for activity dates and your profile activity heatmap.
         </p>
         <TimezoneSelector currentTimezone={currentTimezone} />
       </section>

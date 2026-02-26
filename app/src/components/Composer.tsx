@@ -219,7 +219,7 @@ export function Composer({ projects, timezone, onPosted }: ComposerProps) {
           <a href="/settings" className="underline">
             Settings
           </a>{" "}
-          for accurate streak tracking.
+          so activity dates match your local day.
         </p>
       )}
 

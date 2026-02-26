@@ -11,8 +11,6 @@ export interface Database {
           avatar_url: string | null;
           bio: string | null;
           timezone: string;
-          streak_frozen: boolean;
-          streak_metadata: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -23,8 +21,6 @@ export interface Database {
           avatar_url?: string | null;
           bio?: string | null;
           timezone?: string;
-          streak_frozen?: boolean;
-          streak_metadata?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -35,8 +31,6 @@ export interface Database {
           avatar_url?: string | null;
           bio?: string | null;
           timezone?: string;
-          streak_frozen?: boolean;
-          streak_metadata?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -355,12 +349,7 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: {
-      increment_streak: {
-        Args: { p_user_id: string; p_date_local: string };
-        Returns: void;
-      };
-    };
+    Functions: Record<string, never>;
     Enums: Record<string, never>;
   };
 }

@@ -7,11 +7,10 @@ import { ActivityItem } from "@/components/ActivityItem";
 import { FeedRefresh } from "@/components/FeedRefresh";
 import { ProjectManager } from "@/components/ProjectManager";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
-import { computeStreakStatus, computeStreak } from "@/lib/streak";
 import { levelProgressPct } from "@/lib/xp";
 import { queryUserFeed } from "@/lib/feed";
-import type { FeedItem, StreakMetadata } from "@/lib/types";
-import type { Json } from "@/lib/database.types";
+import { ConsistencyGrid } from "@/components/ConsistencyGrid";
+import type { FeedItem } from "@/lib/types";
 
 export const revalidate = 30;
 
@@ -77,11 +76,6 @@ function formatGroupDate(dateUtc: string): string {
   return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function parseMetadata(raw: Json | null): StreakMetadata {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  return raw as StreakMetadata;
-}
-
 async function getUserData(
   username: string,
   cursor?: string,
@@ -93,8 +87,6 @@ async function getUserData(
     avatar_url: string | null;
     bio: string | null;
     timezone: string;
-    streak_frozen: boolean;
-    streak_metadata: Json | null;
   };
   projects: ProjectSummary[];
   feed: FeedItem[];
@@ -109,7 +101,7 @@ async function getUserData(
 
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("id, username, avatar_url, bio, timezone, streak_frozen, streak_metadata")
+    .select("id, username, avatar_url, bio, timezone")
     .ilike("username", pattern)
     .maybeSingle();
 
@@ -149,13 +141,6 @@ async function getUserData(
   };
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  Safe: "bg-green-100 text-green-800",
-  "At Risk": "bg-amber-100 text-amber-800",
-  Frozen: "bg-blue-100 text-blue-800",
-  New: "",
-};
-
 export default async function UserPage({
   params,
   searchParams,
@@ -174,13 +159,20 @@ export default async function UserPage({
   const { user, projects, feed, nextCursor } = data;
   const isOwner = sessionUser?.userId === user.id;
 
-  const { currentStreak, lastActiveDayLocal: computedLastActive } = await computeStreak(user.id);
-  const meta = parseMetadata(user.streak_metadata);
-  const streakStatus = computeStreakStatus(
-    computedLastActive ?? meta.lastActiveDayLocal ?? null,
-    user.timezone,
-    user.streak_frozen
-  );
+  // Activity counts per day for heatmap (date_local from activities)
+  const supabase = createSupabaseAdmin();
+  const { data: activityRows } = await supabase
+    .from("activities")
+    .select("date_local")
+    .eq("user_id", user.id)
+    .not("date_local", "is", null)
+    .order("date_local", { ascending: false });
+  const countMap = new Map<string, number>();
+  for (const row of activityRows ?? []) {
+    const d = row.date_local as string;
+    countMap.set(d, (countMap.get(d) ?? 0) + 1);
+  }
+  const activityData = [...countMap.entries()].map(([date, count]) => ({ date, count }));
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
@@ -206,25 +198,10 @@ export default async function UserPage({
         </div>
       </header>
 
-      {/* Streak summary */}
-      {streakStatus !== "New" && (
-        <Link href={`/u/${username}/streaks`} className="mb-8 block">
-          <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:border-amber-300">
-            <span className="text-2xl">🔥</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-[#2a1f14]">
-                {currentStreak}
-              </span>
-              <span className="text-sm text-[#78716c]">day streak</span>
-              {streakStatus !== "Safe" && (
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[streakStatus] ?? ""}`}>
-                  {streakStatus}
-                </span>
-              )}
-            </div>
-          </div>
-        </Link>
-      )}
+      {/* Activity heatmap */}
+      <section className="mb-8">
+        <ConsistencyGrid activityData={activityData} timezone={user.timezone} />
+      </section>
 
       {/* Projects section */}
       {isOwner ? (

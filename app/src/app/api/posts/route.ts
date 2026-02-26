@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase";
-import { getLocalToday, incrementStreakAtomic } from "@/lib/streak";
+import { getLocalToday } from "@/lib/date";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -66,8 +66,6 @@ export async function POST(req: NextRequest) {
     console.error("[posts] insert failed", error);
     return NextResponse.json({ error: "Failed to create post" }, { status: 500 });
   }
-
-  await incrementStreakAtomic(userId, dateLocal);
 
   return NextResponse.json(activity, { status: 201 });
 }

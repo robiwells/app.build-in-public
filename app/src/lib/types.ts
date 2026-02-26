@@ -19,9 +19,3 @@ export type FeedItem = {
     hearted?: boolean;
   };
 };
-
-export type StreakMetadata = {
-  currentStreak?: number;
-  longestStreak?: number;
-  lastActiveDayLocal?: string;
-};
