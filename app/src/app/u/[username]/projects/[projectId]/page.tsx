@@ -1,8 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { ActivityItem } from "@/components/ActivityItem";
+import { CommentForm } from "@/components/CommentForm";
+import { DeleteCommentButton } from "@/components/DeleteCommentButton";
+import { ProjectTabs } from "@/components/ProjectTabs";
 import { levelProgressPct, xpInCurrentLevel, xpToNextLevel } from "@/lib/xp";
 
 export const revalidate = 30;
@@ -13,6 +17,14 @@ type ProjectRepo = {
   repo_url: string;
 };
 
+type ProjectComment = {
+  id: string;
+  body: string;
+  created_at: string;
+  user_id: string;
+  user: { id: string; username: string; avatar_url: string | null } | null;
+};
+
 type Project = {
   id: string;
   title: string;
@@ -21,6 +33,7 @@ type Project = {
   slug: string | null;
   xp: number;
   level: number;
+  comments_count: number;
   project_repos: ProjectRepo[];
 };
 
@@ -51,6 +64,7 @@ async function getProjectData(
   project: Project;
   feed: FeedItem[];
   nextCursor: string | null;
+  comments: ProjectComment[];
 } | null> {
   const supabase = createSupabaseAdmin();
   const limit = 20;
@@ -80,6 +94,7 @@ async function getProjectData(
       slug,
       xp,
       level,
+      comments_count,
       project_repos!left(id, repo_full_name, repo_url, active)
     `
     )
@@ -153,6 +168,25 @@ async function getProjectData(
     };
   });
 
+  const { data: commentRows } = await supabase
+    .from("project_comments")
+    .select("id, body, created_at, user_id, users(id, username, avatar_url)")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: true });
+
+  const comments: ProjectComment[] = (commentRows ?? []).map((c: Record<string, unknown>) => {
+    const cu = c.users as Record<string, unknown> | null;
+    return {
+      id: c.id as string,
+      body: c.body as string,
+      created_at: c.created_at as string,
+      user_id: c.user_id as string,
+      user: cu
+        ? { id: cu.id as string, username: cu.username as string, avatar_url: cu.avatar_url as string | null }
+        : null,
+    };
+  });
+
   return {
     user,
     project: {
@@ -160,10 +194,24 @@ async function getProjectData(
       slug: project.slug ?? null,
       xp: (project as unknown as { xp?: number }).xp ?? 0,
       level: (project as unknown as { level?: number }).level ?? 1,
+      comments_count: (project as unknown as { comments_count?: number }).comments_count ?? 0,
     } as Project,
     feed,
     nextCursor,
+    comments,
   };
+}
+
+function formatRelative(timestamp: string | null | undefined): string {
+  if (!timestamp) return "";
+  const d = new Date(timestamp);
+  const now = new Date();
+  const sec = Math.floor((now.getTime() - d.getTime()) / 1000);
+  if (sec < 60) return "just now";
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+  return d.toLocaleDateString();
 }
 
 /** Path segment for project URL: slug if set, else id (backward compatible). */
@@ -194,18 +242,145 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ username: string; projectId: string }>;
-  searchParams: Promise<{ cursor?: string }>;
+  searchParams: Promise<{ cursor?: string; tab?: string }>;
 }) {
   const { username, projectId: slugOrId } = await params;
-  const { cursor } = await searchParams;
+  const { cursor, tab } = await searchParams;
   const session = await auth();
   const sessionUser = session?.user as { userId?: string } | undefined;
   const data = await getProjectData(username, slugOrId, cursor);
 
   if (!data) notFound();
 
-  const { user, project, feed, nextCursor } = data;
+  const { user, project, feed, nextCursor, comments } = data;
   const isOwner = sessionUser?.userId === user.id;
+  const sessionUserId = sessionUser?.userId ?? null;
+  const initialTab = tab === "discussion" ? "discussion" : "activity";
+
+  const activityContent = (
+    <section className="mt-8">
+      {feed.length === 0 ? (
+        <p className="text-[#78716c]">No activity yet.</p>
+      ) : (
+        <>
+          <div className="space-y-4">
+            {groupByDate(feed).map(({ key, date, items }) => (
+              <div
+                key={key}
+                className={`overflow-hidden rounded-xl bg-white ${
+                  items.some(i => i.activity.type === "milestone")
+                    ? "border border-amber-300 shadow-[0_1px_3px_rgba(120,80,40,0.10)]"
+                    : "card"
+                }`}
+              >
+                <div className="flex items-center border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
+                  <span className="text-sm font-medium text-[#2a1f14]">{formatDate(date)}</span>
+                </div>
+                <div className="px-4">
+                  {items.map((item) => (
+                    <ActivityItem
+                      key={item.activity.id ?? item.activity.date_utc}
+                      user={null}
+                      project={{ title: project.title }}
+                      repo={item.repo}
+                      activity={item.activity}
+                      showUser={false}
+                      showProject={false}
+                      hideHeader={true}
+                      canDelete={isOwner}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {nextCursor && (
+            <div className="mt-6">
+              <Link
+                href={`/u/${username}/projects/${projectSegment(project)}?cursor=${encodeURIComponent(nextCursor)}`}
+                className="text-sm font-medium text-[#78716c] hover:text-[#b5522a]"
+              >
+                Load more
+              </Link>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+
+  const discussionContent = (
+    <section className="mt-8">
+      {comments.length === 0 ? (
+        <p className="text-sm text-[#a8a29e]">No comments yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {comments.map((comment) => (
+            <div key={comment.id} className="flex gap-3">
+              {comment.user?.avatar_url ? (
+                <Link href={`/u/${comment.user.username}`} className="shrink-0">
+                  <Image
+                    src={comment.user.avatar_url}
+                    alt={comment.user.username}
+                    width={32}
+                    height={32}
+                    className="rounded-full"
+                  />
+                </Link>
+              ) : comment.user ? (
+                <Link
+                  href={`/u/${comment.user.username}`}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f5f0e8] text-xs font-medium text-[#78716c]"
+                >
+                  {comment.user.username[0].toUpperCase()}
+                </Link>
+              ) : (
+                <div className="h-8 w-8 shrink-0 rounded-full bg-[#f5f0e8]" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  {comment.user && (
+                    <Link href={`/u/${comment.user.username}`} className="text-sm font-medium text-[#2a1f14] hover:text-[#b5522a]">
+                      {comment.user.username}
+                    </Link>
+                  )}
+                  <span className="text-xs text-[#a8a29e]">{formatRelative(comment.created_at)}</span>
+                  {sessionUserId && comment.user_id === sessionUserId && (
+                    <DeleteCommentButton
+                      commentId={comment.id}
+                      apiPath={`/api/project-comments/${comment.id}`}
+                    />
+                  )}
+                </div>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-[#2a1f14]">
+                  {comment.body}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6 border-t border-[#e8ddd0] pt-4">
+        {sessionUserId ? (
+          <CommentForm
+            postId={project.id}
+            apiPath={`/api/projects/${project.id}/comments`}
+          />
+        ) : (
+          <p className="text-sm text-[#78716c]">
+            <Link
+              href={`/api/auth/signin?callbackUrl=${encodeURIComponent(`/u/${user.username}/projects/${projectSegment(project)}?tab=discussion`)}`}
+              className="font-medium text-[#b5522a] hover:underline"
+            >
+              Sign in
+            </Link>{" "}
+            to leave a comment.
+          </p>
+        )}
+      </div>
+    </section>
+  );
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
@@ -268,58 +443,12 @@ export default async function ProjectPage({
         )}
       </header>
 
-      <section className="mt-8">
-        <h2 className="mb-3 font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#2a1f14]">
-          Activity
-        </h2>
-        {feed.length === 0 ? (
-          <p className="text-[#78716c]">No activity yet.</p>
-        ) : (
-          <>
-            <div className="space-y-4">
-              {groupByDate(feed).map(({ key, date, items }) => (
-                <div
-                  key={key}
-                  className={`overflow-hidden rounded-xl bg-white ${
-                    items.some(i => i.activity.type === "milestone")
-                      ? "border border-amber-300 shadow-[0_1px_3px_rgba(120,80,40,0.10)]"
-                      : "card"
-                  }`}
-                >
-                  <div className="flex items-center border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
-                    <span className="text-sm font-medium text-[#2a1f14]">{formatDate(date)}</span>
-                  </div>
-                  <div className="px-4">
-                    {items.map((item) => (
-                      <ActivityItem
-                        key={item.activity.id ?? item.activity.date_utc}
-                        user={null}
-                        project={{ title: project.title }}
-                        repo={item.repo}
-                        activity={item.activity}
-                        showUser={false}
-                        showProject={false}
-                        hideHeader={true}
-                        canDelete={isOwner}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {nextCursor && (
-              <div className="mt-6">
-                <Link
-                  href={`/u/${username}/projects/${projectSegment(project)}?cursor=${encodeURIComponent(nextCursor)}`}
-                  className="text-sm font-medium text-[#78716c] hover:text-[#b5522a]"
-                >
-                  Load more
-                </Link>
-              </div>
-            )}
-          </>
-        )}
-      </section>
+      <ProjectTabs
+        commentsCount={project.comments_count}
+        initialTab={initialTab}
+        activityContent={activityContent}
+        discussionContent={discussionContent}
+      />
     </main>
   );
 }

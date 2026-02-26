@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 import { CATEGORIES } from "@/lib/constants";
+import { HeartButton } from "@/components/HeartButton";
 
 export const revalidate = 60;
 
@@ -9,12 +11,15 @@ type Props = { searchParams: Promise<{ category?: string }> };
 export default async function ProjectsPage({ searchParams }: Props) {
   const { category } = await searchParams;
 
+  const session = await auth();
+  const sessionUserId = (session?.user as { userId?: string })?.userId ?? null;
+
   const supabase = createSupabaseAdmin();
 
   let query = supabase
     .from("projects")
     .select(`
-      id, title, description, url, slug, category, xp, level, created_at,
+      id, title, description, url, slug, category, xp, level, created_at, hearts_count, comments_count,
       users(id, username),
       activities(created_at)
     `)
@@ -26,6 +31,18 @@ export default async function ProjectsPage({ searchParams }: Props) {
   }
 
   const { data: projects } = await query;
+
+  // Build set of project IDs hearted by the current user
+  let heartedSet = new Set<string>();
+  if (sessionUserId && projects && projects.length > 0) {
+    const projectIds = projects.map((p) => p.id);
+    const { data: heartRows } = await supabase
+      .from("project_hearts")
+      .select("project_id")
+      .eq("user_id", sessionUserId)
+      .in("project_id", projectIds);
+    heartedSet = new Set((heartRows ?? []).map((h: { project_id: string }) => h.project_id));
+  }
 
   const active = category
     ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
@@ -152,6 +169,21 @@ export default async function ProjectsPage({ searchParams }: Props) {
                           })}
                         </span>
                       </>
+                    )}
+                  </div>
+                  <div className="mt-2 flex items-center gap-4 text-sm text-[#a8a29e]">
+                    <HeartButton
+                      postId={project.id}
+                      apiPath={`/api/projects/${project.id}/hearts`}
+                      initialCount={project.hearts_count ?? 0}
+                      initialHearted={heartedSet.has(project.id)}
+                      currentUserId={sessionUserId}
+                    />
+                    {projectHref && (
+                      <Link href={`${projectHref}?tab=discussion`} className="hover:text-[#b5522a]">
+                        {project.comments_count ?? 0}{" "}
+                        {(project.comments_count ?? 0) !== 1 ? "comments" : "comment"}
+                      </Link>
                     )}
                   </div>
                 </div>

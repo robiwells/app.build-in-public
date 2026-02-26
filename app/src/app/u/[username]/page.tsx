@@ -43,7 +43,9 @@ function groupFeedItems(items: FeedItem[]): FeedGroup[] {
 
   for (const item of items) {
     const date = item.activity.date_utc ?? "";
-    const key = date || "unknown";
+    const key = item.activity.type === "milestone"
+      ? `milestone_${item.activity.id}`
+      : date || "unknown";
 
     if (!map.has(key)) {
       map.set(key, {
@@ -270,7 +272,7 @@ export default async function UserPage({
           <>
             <div className="space-y-4">
               {groupFeedItems(feed).map((group) => (
-                <div key={group.key} className="card overflow-hidden rounded-xl">
+                <div key={group.key} className={`overflow-hidden rounded-xl ${group.items.some(i => i.activity.type === "milestone") ? "border border-amber-300 shadow-[0_1px_3px_rgba(120,80,40,0.10)]" : "card"}`}>
                   {/* Group header — date only */}
                   <div className="border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
                     <span className="text-sm font-medium text-[#78716c]">{formatGroupDate(group.date)}</span>

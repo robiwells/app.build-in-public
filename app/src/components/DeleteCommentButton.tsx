@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 
 type DeleteCommentButtonProps = {
   commentId: string;
+  apiPath?: string;
 };
 
-export function DeleteCommentButton({ commentId }: DeleteCommentButtonProps) {
+export function DeleteCommentButton({ commentId, apiPath }: DeleteCommentButtonProps) {
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
@@ -15,7 +16,7 @@ export function DeleteCommentButton({ commentId }: DeleteCommentButtonProps) {
     if (deleting) return;
     setDeleting(true);
     try {
-      await fetch(`/api/comments/${commentId}`, { method: "DELETE" });
+      await fetch(apiPath ?? `/api/comments/${commentId}`, { method: "DELETE" });
       router.refresh();
     } finally {
       setDeleting(false);

@@ -48,6 +48,8 @@ export interface Database {
           category: string | null;
           xp: number;
           level: number;
+          hearts_count: number;
+          comments_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -62,6 +64,8 @@ export interface Database {
           category?: string | null;
           xp?: number;
           level?: number;
+          hearts_count?: number;
+          comments_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -76,6 +80,8 @@ export interface Database {
           category?: string | null;
           xp?: number;
           level?: number;
+          hearts_count?: number;
+          comments_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -296,6 +302,84 @@ export interface Database {
           },
           {
             foreignKeyName: "comments_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      project_hearts: {
+        Row: {
+          id: string;
+          user_id: string;
+          project_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          project_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          project_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_hearts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_hearts_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      project_comments: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          body: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_id: string;
+          body: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_id?: string;
+          body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_comments_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_comments_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";

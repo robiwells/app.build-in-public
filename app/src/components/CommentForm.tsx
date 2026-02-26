@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 
 type CommentFormProps = {
   postId: string;
+  apiPath?: string;
 };
 
-export function CommentForm({ postId }: CommentFormProps) {
+export function CommentForm({ postId, apiPath }: CommentFormProps) {
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export function CommentForm({ postId }: CommentFormProps) {
     setError(null);
 
     try {
-      const res = await fetch(`/api/activities/${postId}/comments`, {
+      const res = await fetch(apiPath ?? `/api/activities/${postId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: trimmed }),

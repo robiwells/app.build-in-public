@@ -4,6 +4,7 @@ import { useState } from "react";
 
 type HeartButtonProps = {
   postId: string;
+  apiPath?: string;
   initialCount: number;
   initialHearted: boolean;
   currentUserId: string | null;
@@ -11,6 +12,7 @@ type HeartButtonProps = {
 
 export function HeartButton({
   postId,
+  apiPath,
   initialCount,
   initialHearted,
   currentUserId,
@@ -34,7 +36,7 @@ export function HeartButton({
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/activities/${postId}/hearts`, {
+      const res = await fetch(apiPath ?? `/api/activities/${postId}/hearts`, {
         method: "POST",
       });
       if (res.ok) {
