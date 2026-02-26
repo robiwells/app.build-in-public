@@ -45,7 +45,7 @@ export function MediumConnector({
   }
 
   return (
-    <div className="card w-80 rounded-xl p-4">
+    <div className="card rounded-xl p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f5f0e8]">

@@ -105,7 +105,7 @@ export function EditableProjectCard({
 
   return (
     <>
-      <div className="card rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]">
+      <div className="card flex flex-col rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]">
         <div className="mb-2 flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             {projectHref ? (
@@ -182,7 +182,7 @@ export function EditableProjectCard({
           </p>
         )}
 
-        <div className="mt-3 space-y-1">
+        <div className="mt-auto space-y-1 pt-3">
           <div className="flex items-center justify-between gap-2">
             {ownerUsername && (
               <Link
@@ -224,7 +224,7 @@ export function EditableProjectCard({
               </>
             )}
           </div>
-          <div className="mt-2 flex items-center gap-4 text-sm text-[#a8a29e]">
+          <div className="flex items-center gap-4 text-sm text-[#a8a29e]">
             <HeartButton
               postId={projectId}
               apiPath={`/api/projects/${projectId}/hearts`}

@@ -40,7 +40,7 @@ export default async function ConnectorsPage() {
       : null;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
+    <main className="mx-auto max-w-5xl px-4 py-8">
       <Link
         href="/"
         className="mb-6 inline-block text-sm text-[#78716c] hover:text-[#2a1f14]"
@@ -54,9 +54,9 @@ export default async function ConnectorsPage() {
         Connect services to automatically track progress across your projects.
       </p>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {installAppUrl ? (
-        <div className="card w-80 rounded-xl p-4">
+        <div className="card rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f5f0e8]">
