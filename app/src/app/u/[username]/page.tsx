@@ -250,12 +250,12 @@ export default async function UserPage({
             <Image
               src={user.avatar_url}
               alt=""
-              width={80}
-              height={80}
+              width={104}
+              height={104}
               className="rounded-full shrink-0"
             />
           ) : (
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#f5f0e8] text-3xl font-medium text-[#78716c]">
+            <div className="flex h-26 w-26 shrink-0 items-center justify-center rounded-full bg-[#f5f0e8] text-4xl font-medium text-[#78716c]">
               {(user?.username ?? "?")[0]?.toUpperCase() ?? "?"}
             </div>
           )}
@@ -264,17 +264,17 @@ export default async function UserPage({
               {user?.username ?? username}
             </h1>
             <ProfileBioEditor bio={user.bio} isOwner={isOwner} />
+            {/* Stats row */}
+            <div className="mt-2 flex flex-wrap items-center gap-1 text-sm text-[#a8a29e]">
+              <span className="font-medium text-[#78716c]">{projects.length}</span>
+              <span>{projects.length === 1 ? "project" : "projects"}</span>
+              <span className="mx-1">·</span>
+              <span className="font-medium text-[#78716c]">{totalPostCount}</span>
+              <span>{totalPostCount === 1 ? "post" : "posts"}</span>
+              <span className="mx-1">·</span>
+              <span>Joined {formatJoinDate(user.created_at)}</span>
+            </div>
           </div>
-        </div>
-        {/* Stats row */}
-        <div className="mt-4 flex flex-wrap items-center gap-1 text-sm text-[#a8a29e]">
-          <span className="font-medium text-[#78716c]">{projects.length}</span>
-          <span>{projects.length === 1 ? "project" : "projects"}</span>
-          <span className="mx-1">·</span>
-          <span className="font-medium text-[#78716c]">{totalPostCount}</span>
-          <span>{totalPostCount === 1 ? "post" : "posts"}</span>
-          <span className="mx-1">·</span>
-          <span>Joined {formatJoinDate(user.created_at)}</span>
         </div>
       </header>
 
