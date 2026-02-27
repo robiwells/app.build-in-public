@@ -75,7 +75,7 @@ async function getSessionUserData(userId: string): Promise<{
   const supabase = createSupabaseAdmin();
   const { data } = await supabase
     .from("users")
-    .select("username, timezone, projects(id, title, active)")
+    .select("username, timezone, projects!projects_user_id_fkey(id, title, active)")
     .eq("id", userId)
     .eq("projects.active", true)
     .maybeSingle();
