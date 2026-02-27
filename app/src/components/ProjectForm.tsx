@@ -106,16 +106,19 @@ export function ProjectForm({ onCreated }: { onCreated?: () => void }) {
       if (projectRes.ok) {
         const data = (await projectRes.json()) as { project: CreatedProject };
         setCreatedProject(data.project);
-      } else {
-        setTitle("");
-        setDescription("");
-        setUrl("");
-        setCategory("");
-        setPendingRepos([]);
-        setPendingMedium(null);
-        setOpen(false);
-        onCreated?.();
       }
+      // Always close and refresh list after successful create so the modal closes and list updates
+      setTitle("");
+      setDescription("");
+      setUrl("");
+      setCategory("");
+      setPendingRepos([]);
+      setPendingMedium(null);
+      setOpen(false);
+      if (projectRes.ok) {
+        setCreatedProject(null);
+      }
+      onCreated?.();
     } catch {
       setError("Request failed");
     } finally {
