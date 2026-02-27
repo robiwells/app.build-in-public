@@ -144,15 +144,22 @@ export function OwnerFeaturedProject({ project, username, postCount, lastActive 
           )}
           {project.project_repos.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {project.project_repos.map((repo) => (
-                <span
-                  key={repo.id}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs text-[#78716c] shadow-sm"
-                >
-                  <SourceBadge type={repo.connector_type} />
-                  {repo.repo_full_name}
-                </span>
-              ))}
+              {project.project_repos.map((repo) => {
+                const Wrapper = repo.repo_url ? "a" : "span";
+                const wrapperProps = repo.repo_url
+                  ? { href: repo.repo_url, target: "_blank", rel: "noopener noreferrer" }
+                  : {};
+                return (
+                  <Wrapper
+                    key={repo.id}
+                    {...wrapperProps}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs text-[#78716c] shadow-sm hover:text-[#b5522a] hover:underline"
+                  >
+                    <SourceBadge type={repo.connector_type} />
+                    {repo.repo_full_name}
+                  </Wrapper>
+                );
+              })}
             </div>
           )}
           <p className="mt-3 text-xs text-[#a8a29e]">
