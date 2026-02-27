@@ -13,6 +13,8 @@ export interface Database {
           timezone: string;
           created_at: string;
           updated_at: string;
+          pinned_project_id: string | null;
+          pinned_activity_id: string | null;
         };
         Insert: {
           id?: string;
@@ -23,6 +25,8 @@ export interface Database {
           timezone?: string;
           created_at?: string;
           updated_at?: string;
+          pinned_project_id?: string | null;
+          pinned_activity_id?: string | null;
         };
         Update: {
           id?: string;
@@ -33,6 +37,8 @@ export interface Database {
           timezone?: string;
           created_at?: string;
           updated_at?: string;
+          pinned_project_id?: string | null;
+          pinned_activity_id?: string | null;
         };
         Relationships: [];
       };

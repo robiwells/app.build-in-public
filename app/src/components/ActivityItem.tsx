@@ -35,6 +35,10 @@ type ActivityItemProps = {
   deleteRedirectHref?: string;
   /** Suppress the date heading even when dateAsHeader would be true. */
   hideHeader?: boolean;
+  /** Show pin/unpin option in the 3-dot menu (only for post owner). */
+  canPin?: boolean;
+  /** The currently pinned activity ID for this user's profile. */
+  pinnedActivityId?: string | null;
 };
 
 function formatDate(dateUtc: string | undefined): string {
@@ -83,6 +87,8 @@ export function ActivityItem({
   canDelete,
   deleteRedirectHref,
   hideHeader,
+  canPin,
+  pinnedActivityId,
 }: ActivityItemProps) {
   const isManual = activity.type === "manual";
   const isMilestone = activity.type === "milestone";
@@ -94,7 +100,7 @@ export function ActivityItem({
   const projectTitle = project?.title;
   const timeRange = formatTimeRange(activity.first_commit_at, activity.last_commit_at);
   const messages = activity.commit_messages ?? [];
-  const showMenu = canDelete && activity.id;
+  const showMenu = (canDelete || canPin) && activity.id;
   const showHeaderRow =
     (showUser && !!user) ||
     (showProject && !!projectTitle) ||
@@ -289,7 +295,12 @@ export function ActivityItem({
           )}
         </div>
         {showMenu && (
-          <PostMenu postId={activity.id!} redirectHref={deleteRedirectHref} />
+          <PostMenu
+            postId={activity.id!}
+            redirectHref={deleteRedirectHref}
+            canPin={canPin}
+            isPinned={!!pinnedActivityId && pinnedActivityId === activity.id}
+          />
         )}
       </div>
     </article>

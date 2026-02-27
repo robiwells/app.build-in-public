@@ -10,6 +10,7 @@ import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 import { levelProgressPct } from "@/lib/xp";
 import { queryUserFeed } from "@/lib/feed";
 import { ConsistencyGrid } from "@/components/ConsistencyGrid";
+import { OwnerFeaturedProject } from "@/components/OwnerFeaturedProject";
 import type { FeedItem } from "@/lib/types";
 
 export const revalidate = 30;
@@ -18,6 +19,7 @@ type Repo = {
   id: string;
   repo_full_name: string;
   repo_url: string;
+  connector_type?: string;
 };
 
 type ProjectSummary = {
@@ -26,6 +28,7 @@ type ProjectSummary = {
   description: string | null;
   url: string | null;
   slug: string | null;
+  category: string | null;
   xp: number;
   level: number;
   project_repos: Repo[];
@@ -78,6 +81,16 @@ function formatGroupDate(dateUtc: string): string {
   return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
+function formatJoinDate(createdAt: string): string {
+  return new Date(createdAt).toLocaleDateString([], { month: "short", year: "numeric" });
+}
+
+function formatLastActive(dateLocal: string | null): string | null {
+  if (!dateLocal) return null;
+  const [y, m, d] = dateLocal.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", year: "numeric" });
+}
+
 async function getUserData(
   username: string,
   cursor?: string,
@@ -89,6 +102,9 @@ async function getUserData(
     avatar_url: string | null;
     bio: string | null;
     timezone: string;
+    created_at: string;
+    pinned_project_id: string | null;
+    pinned_activity_id: string | null;
   };
   projects: ProjectSummary[];
   feed: FeedItem[];
@@ -103,7 +119,7 @@ async function getUserData(
 
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("id, username, avatar_url, bio, timezone")
+    .select("id, username, avatar_url, bio, timezone, created_at, pinned_project_id, pinned_activity_id")
     .ilike("username", pattern)
     .maybeSingle();
 
@@ -123,6 +139,7 @@ async function getUserData(
       description,
       url,
       slug,
+      category,
       xp,
       level,
       project_connector_sources!left(id, external_id, url, active, connector_type)
@@ -180,42 +197,84 @@ export default async function UserPage({
   const { user, projects, feed, nextCursor } = data;
   const isOwner = sessionUser?.userId === user.id;
 
-  // Activity counts per day for heatmap (date_local from activities)
+  // Activity rows for heatmap + per-project stats
   const supabase = createSupabaseAdmin();
   const { data: activityRows } = await supabase
     .from("activities")
-    .select("date_local")
+    .select("date_local, project_id")
     .eq("user_id", user.id)
     .not("date_local", "is", null)
     .order("date_local", { ascending: false });
+
   const countMap = new Map<string, number>();
+  const projectLastActiveMap = new Map<string, string>(); // project_id → max date_local (first seen = most recent)
+  const projectActivityCountMap = new Map<string, number>();
+
   for (const row of activityRows ?? []) {
     const d = row.date_local as string;
     countMap.set(d, (countMap.get(d) ?? 0) + 1);
+    if (row.project_id) {
+      if (!projectLastActiveMap.has(row.project_id)) {
+        projectLastActiveMap.set(row.project_id, d); // rows ordered DESC
+      }
+      projectActivityCountMap.set(
+        row.project_id,
+        (projectActivityCountMap.get(row.project_id) ?? 0) + 1
+      );
+    }
   }
+
   const activityData = [...countMap.entries()].map(([date, count]) => ({ date, count }));
+  const totalPostCount = activityRows?.length ?? 0;
+
+  // Pinned post — identify from feed
+  const pinnedActivityId = user.pinned_activity_id;
+  const pinnedFeedItem = pinnedActivityId
+    ? (feed.find((item) => item.activity.id === pinnedActivityId) ?? null)
+    : null;
+  const feedWithoutPinned = pinnedFeedItem
+    ? feed.filter((item) => item.activity.id !== pinnedActivityId)
+    : feed;
+
+  // Pinned project
+  const pinnedProject = user.pinned_project_id
+    ? (projects.find((p) => p.id === user.pinned_project_id) ?? null)
+    : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
-      <header className="mb-8 flex items-center gap-4">
-        {user?.avatar_url ? (
-          <Image
-            src={user.avatar_url}
-            alt=""
-            width={64}
-            height={64}
-            className="rounded-full"
-          />
-        ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f5f0e8] text-2xl font-medium text-[#78716c]">
-            {(user?.username ?? "?")[0]?.toUpperCase() ?? "?"}
+      {/* Hero: Avatar + Identity */}
+      <header className="mb-6">
+        <div className="flex items-start gap-5">
+          {user?.avatar_url ? (
+            <Image
+              src={user.avatar_url}
+              alt=""
+              width={80}
+              height={80}
+              className="rounded-full shrink-0"
+            />
+          ) : (
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#f5f0e8] text-3xl font-medium text-[#78716c]">
+              {(user?.username ?? "?")[0]?.toUpperCase() ?? "?"}
+            </div>
+          )}
+          <div className="min-w-0 flex-1 pt-1">
+            <h1 className="font-(family-name:--font-fraunces) text-3xl font-semibold text-[#2a1f14]">
+              {user?.username ?? username}
+            </h1>
+            <ProfileBioEditor bio={user.bio} isOwner={isOwner} />
           </div>
-        )}
-        <div>
-          <h1 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold text-[#2a1f14]">
-            {user?.username ?? username}
-          </h1>
-          <ProfileBioEditor bio={user.bio} isOwner={isOwner} />
+        </div>
+        {/* Stats row */}
+        <div className="mt-4 flex flex-wrap items-center gap-1 text-sm text-[#a8a29e]">
+          <span className="font-medium text-[#78716c]">{projects.length}</span>
+          <span>{projects.length === 1 ? "project" : "projects"}</span>
+          <span className="mx-1">·</span>
+          <span className="font-medium text-[#78716c]">{totalPostCount}</span>
+          <span>{totalPostCount === 1 ? "post" : "posts"}</span>
+          <span className="mx-1">·</span>
+          <span>Joined {formatJoinDate(user.created_at)}</span>
         </div>
       </header>
 
@@ -224,20 +283,48 @@ export default async function UserPage({
         <ConsistencyGrid activityData={activityData} timezone={user.timezone} />
       </section>
 
+      {/* Featured project slot */}
+      {pinnedProject && (
+        <section className="mb-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#a8a29e]">
+            Featured
+          </p>
+          {isOwner ? (
+            <OwnerFeaturedProject
+              project={pinnedProject}
+              username={username}
+              postCount={projectActivityCountMap.get(pinnedProject.id) ?? 0}
+              lastActive={formatLastActive(projectLastActiveMap.get(pinnedProject.id) ?? null)}
+            />
+          ) : (
+            <FeaturedProjectCard
+              project={pinnedProject}
+              username={username}
+              postCount={projectActivityCountMap.get(pinnedProject.id) ?? 0}
+              lastActive={formatLastActive(projectLastActiveMap.get(pinnedProject.id) ?? null)}
+            />
+          )}
+        </section>
+      )}
+
       {/* Projects section */}
       {isOwner ? (
         <section className="mb-8">
-          <ProjectManager username={username} />
+          <ProjectManager
+            username={username}
+            initialPinnedProjectId={user.pinned_project_id}
+          />
         </section>
       ) : projects.length > 0 ? (
         <section className="mb-8">
-          <h2 className="mb-3 font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#2a1f14]">
+          <h2 className="mb-3 font-(family-name:--font-fraunces) text-xl font-semibold text-[#2a1f14]">
             Projects
           </h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             {projects.map((p) => {
               const displayUrl =
                 p.url ?? (p.project_repos?.[0] as { repo_url?: string } | undefined)?.repo_url ?? null;
+              const lastActive = formatLastActive(projectLastActiveMap.get(p.id) ?? null);
               return (
                 <Link key={p.id} href={`/u/${username}/projects/${p.slug?.trim() ? p.slug : p.id}`}>
                   <div className="card rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]">
@@ -277,6 +364,9 @@ export default async function UserPage({
                         style={{ width: `${levelProgressPct(p.xp, p.level)}%` }}
                       />
                     </div>
+                    {lastActive && (
+                      <p className="mt-2 text-xs text-[#a8a29e]">Last active {lastActive}</p>
+                    )}
                   </div>
                 </Link>
               );
@@ -288,13 +378,47 @@ export default async function UserPage({
       {/* Activity feed */}
       <section>
         <FeedRefresh />
-        <h2 className="mb-3 font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#2a1f14]">Activity</h2>
+
+        {/* Pinned post */}
+        {pinnedFeedItem && (
+          <div className="mb-6">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#a8a29e]">
+              Pinned
+            </p>
+            <div className={`overflow-hidden rounded-xl ${pinnedFeedItem.activity.type === "milestone" ? "border border-amber-300 shadow-[0_1px_3px_rgba(120,80,40,0.10)]" : "card"}`}>
+              <div className="px-4">
+                <ActivityItem
+                  user={null}
+                  project={pinnedFeedItem.project}
+                  repo={pinnedFeedItem.repo}
+                  activity={pinnedFeedItem.activity}
+                  showUser={false}
+                  projectHref={pinnedFeedItem.project?.id
+                    ? `/u/${username}/projects/${pinnedFeedItem.project?.slug?.trim() ? pinnedFeedItem.project.slug : pinnedFeedItem.project?.id}`
+                    : undefined}
+                  heartCount={pinnedFeedItem.activity.hearts_count}
+                  commentCount={pinnedFeedItem.activity.comments_count}
+                  hearted={pinnedFeedItem.activity.hearted}
+                  currentUserId={sessionUser?.userId ?? null}
+                  postHref={pinnedFeedItem.activity.id ? `/p/${pinnedFeedItem.activity.id}` : undefined}
+                  canDelete={isOwner}
+                  canPin={isOwner}
+                  pinnedActivityId={pinnedActivityId}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <h2 className="mb-3 font-(family-name:--font-fraunces) text-xl font-semibold text-[#2a1f14]">
+          Activity
+        </h2>
         {feed.length === 0 ? (
           <p className="text-[#78716c]">No activity yet.</p>
         ) : (
           <>
             <div className="space-y-4">
-              {groupFeedItems(feed).map((group) => (
+              {groupFeedItems(feedWithoutPinned).map((group) => (
                 <div key={group.key} className={`overflow-hidden rounded-xl ${group.items.some(i => i.activity.type === "milestone") ? "border border-amber-300 shadow-[0_1px_3px_rgba(120,80,40,0.10)]" : "card"}`}>
                   {/* Group header — date only */}
                   <div className="border-b border-[#e8ddd0] bg-[#f5f0e8] px-4 py-2.5">
@@ -324,6 +448,8 @@ export default async function UserPage({
                           currentUserId={sessionUser?.userId ?? null}
                           postHref={postHref}
                           canDelete={isOwner}
+                          canPin={isOwner}
+                          pinnedActivityId={pinnedActivityId}
                         />
                       );
                     })}
@@ -346,4 +472,95 @@ export default async function UserPage({
       </section>
     </main>
   );
+}
+
+function FeaturedProjectCard({
+  project,
+  username,
+  postCount,
+  lastActive,
+}: {
+  project: ProjectSummary;
+  username: string;
+  postCount: number;
+  lastActive: string | null;
+}) {
+  const projectHref = `/u/${username}/projects/${project.slug?.trim() ? project.slug : project.id}`;
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+              Level {project.level}
+            </span>
+            <Link
+              href={projectHref}
+              className="font-(family-name:--font-fraunces) text-xl font-semibold text-[#2a1f14] hover:text-[#b5522a]"
+            >
+              {project.title}
+            </Link>
+          </div>
+          {project.description && (
+            <p className="mt-2 text-sm text-[#78716c]">{project.description}</p>
+          )}
+          {project.project_repos.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {project.project_repos.map((repo) => (
+                <span
+                  key={repo.id}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs text-[#78716c] shadow-sm"
+                >
+                  <FeaturedSourceBadge type={repo.connector_type} />
+                  {repo.repo_full_name}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-3 text-xs text-[#a8a29e]">
+            {postCount} {postCount === 1 ? "post" : "posts"}
+            {lastActive && <> · last active {lastActive}</>}
+          </p>
+        </div>
+        {project.url && (
+          <a
+            href={project.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-lg p-1.5 text-[#a8a29e] hover:bg-amber-100 hover:text-[#b5522a]"
+            aria-label="Open project website"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        )}
+      </div>
+      <div className="mt-4 overflow-hidden rounded-full bg-amber-100" style={{ height: "4px" }}>
+        <div
+          className="h-full rounded-full bg-amber-400"
+          style={{ width: `${levelProgressPct(project.xp, project.level)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FeaturedSourceBadge({ type }: { type?: string }) {
+  if (type === "github") {
+    return (
+      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-[#24292e] text-[7px] font-bold text-white">
+        GH
+      </span>
+    );
+  }
+  if (type === "medium") {
+    return (
+      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-black text-[7px] font-bold text-white">
+        M
+      </span>
+    );
+  }
+  return null;
 }

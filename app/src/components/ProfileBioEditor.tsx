@@ -47,19 +47,20 @@ export function ProfileBioEditor({
   if (!isOwner) {
     if (!bio) return null;
     return (
-      <p className="mt-1 text-sm text-[#78716c]">{bio}</p>
+      <p className="mt-2 text-base text-[#78716c] leading-relaxed">{bio}</p>
     );
   }
 
   if (editing) {
     return (
-      <div className="mt-2 space-y-2">
+      <div className="mt-3 space-y-2">
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Write a short bio…"
           rows={3}
           className="w-full rounded-lg border border-[#e8ddd0] bg-white px-3 py-2 text-sm text-[#2a1f14]"
+          autoFocus
         />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">
@@ -81,19 +82,29 @@ export function ProfileBioEditor({
     );
   }
 
+  if (bio) {
+    return (
+      <div className="group mt-2 flex items-start gap-2">
+        <p className="text-base text-[#78716c] leading-relaxed">{bio}</p>
+        <button
+          onClick={() => setEditing(true)}
+          className="mt-0.5 shrink-0 rounded-lg px-2 py-0.5 text-xs text-[#a8a29e] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[#f5f0e8] hover:text-[#2a1f14]"
+        >
+          Edit
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-1 flex items-center gap-2">
-      {bio ? (
-        <p className="text-sm text-[#78716c]">{bio}</p>
-      ) : (
-        <p className="text-sm text-[#a8a29e]">Add a bio…</p>
-      )}
-      <button
-        onClick={() => setEditing(true)}
-        className="rounded-lg px-2 py-1 text-xs text-[#78716c] hover:bg-[#f5f0e8] hover:text-[#2a1f14]"
-      >
-        Edit
-      </button>
-    </div>
+    <button
+      onClick={() => setEditing(true)}
+      className="mt-2 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-[#a8a29e] hover:bg-[#f5f0e8] hover:text-[#78716c] border border-dashed border-[#e8ddd0]"
+    >
+      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+      </svg>
+      Add bio
+    </button>
   );
 }

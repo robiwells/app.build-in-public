@@ -30,6 +30,8 @@ export function ProjectCard({
   onUpdated,
   projectHref,
   startInEditMode = false,
+  isPinnedProject = false,
+  onPinToggle,
 }: {
   project: Project;
   editable: boolean;
@@ -37,6 +39,10 @@ export function ProjectCard({
   projectHref?: string;
   /** When true, show the edit form immediately (e.g. when opened in a modal). */
   startInEditMode?: boolean;
+  /** Whether this project is currently pinned as featured. */
+  isPinnedProject?: boolean;
+  /** Called with project ID to pin, or null to unpin. */
+  onPinToggle?: (projectId: string | null) => void;
 }) {
   const [editing, setEditing] = useState(startInEditMode);
   const [title, setTitle] = useState(project.title);
@@ -311,7 +317,7 @@ export function ProjectCard({
             </button>
             {menuOpen && (
               <div
-                className="absolute right-0 top-full z-10 mt-1 min-w-[8rem] rounded-lg border border-[#e8ddd0] bg-white py-1 shadow-lg"
+                className="absolute right-0 top-full z-10 mt-1 min-w-[9rem] rounded-lg border border-[#e8ddd0] bg-white py-1 shadow-lg"
                 role="menu"
               >
                 <button
@@ -325,6 +331,19 @@ export function ProjectCard({
                 >
                   Edit
                 </button>
+                {onPinToggle && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onPinToggle(isPinnedProject ? null : project.id);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-[#2a1f14] hover:bg-[#f5f0e8]"
+                  >
+                    {isPinnedProject ? "Unpin featured" : "Pin as featured"}
+                  </button>
+                )}
                 <button
                   type="button"
                   role="menuitem"
