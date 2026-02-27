@@ -22,7 +22,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
     .from("projects")
     .select(`
       id, title, description, url, slug, category, xp, level, created_at, hearts_count, comments_count,
-      users(id, username),
+      users!projects_user_id_fkey(id, username),
       activities(created_at)
     `)
     .eq("active", true)

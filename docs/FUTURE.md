@@ -47,3 +47,7 @@ Can promote projects to the feed
 # 7. Visual way to show progress (e.g. milestones)
 
 # 8. User chat system
+
+# 9. Profile space improvements: space is modular. New sections: Roadmap, goals
+
+# 10. Add user level? How to differentiate from project level

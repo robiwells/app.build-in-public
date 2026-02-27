@@ -78,7 +78,7 @@ export async function GET(request: Request) {
     .from("project_connector_sources")
     .select(
       `id, external_id, url, connector_type,
-       projects!inner(id, user_id, users!inner(id, timezone))`
+       projects!inner(id, user_id, users!projects_user_id_fkey!inner(id, timezone))`
     )
     .eq("connector_type", "medium")
     .eq("active", true);

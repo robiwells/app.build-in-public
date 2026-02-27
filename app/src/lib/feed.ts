@@ -108,7 +108,7 @@ export async function queryFeed(opts: FeedQueryOpts): Promise<{
       `id, date_utc, type, content_text, content_image_url, commit_count,
        first_commit_at, last_commit_at, github_link, commit_messages,
        hearts_count, comments_count, user_id, project_id, connector_metadata,
-       users!inner(id, username, avatar_url),
+       users!activities_user_id_fkey!inner(id, username, avatar_url),
        projects(id, title, slug, active, category),
        project_connector_sources(external_id, url)`
     )

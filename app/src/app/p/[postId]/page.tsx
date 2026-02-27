@@ -68,7 +68,7 @@ export default async function PostDetailPage({
       comments_count,
       user_id,
       project_id,
-      users(id, username, avatar_url),
+      users!activities_user_id_fkey(id, username, avatar_url),
       projects(id, title, slug, category),
       project_connector_sources(external_id, url)
     `
