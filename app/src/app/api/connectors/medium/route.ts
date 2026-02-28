@@ -5,17 +5,26 @@ import { createSupabaseAdmin } from "@/lib/supabase";
 
 const parser = new Parser();
 
-/** Normalise input: trim, ensure profile slugs keep their @ prefix. */
+/** Normalise input: trim. Keep as-is for storage (with or without @). */
 function normalise(input: string): string {
-  const trimmed = input.trim();
-  // If it looks like a username without @, add it only if no slash (not a publication path)
-  return trimmed;
+  return input.trim();
 }
 
-/** Build RSS feed URL from normalised external_id. */
+/** Build RSS feed URL. Medium requires feed/@username for profiles, feed/slug for publications. */
 export function buildRssUrl(externalId: string): string {
   const id = externalId.startsWith("@") ? externalId : externalId;
   return `https://medium.com/feed/${id}`;
+}
+
+/** Try profile URL (with @) then publication URL (without @) when input has no @. */
+function getFeedUrlsToTry(externalId: string): string[] {
+  if (externalId.startsWith("@")) {
+    return [`https://medium.com/feed/${externalId}`];
+  }
+  return [
+    `https://medium.com/feed/@${externalId}`,
+    `https://medium.com/feed/${externalId}`,
+  ];
 }
 
 export async function POST(request: Request) {
@@ -47,20 +56,35 @@ export async function POST(request: Request) {
   }
 
   const externalId = normalise(raw);
-  const rssUrl = buildRssUrl(externalId);
+  const urlsToTry = getFeedUrlsToTry(externalId);
 
-  // Pre-flight: fetch and parse the RSS feed
+  // Pre-flight: fetch and parse the RSS feed (try profile @username then publication slug)
   let displayName: string | null = null;
   let latestTitle: string | null = null;
-  try {
-    const feed = await parser.parseURL(rssUrl);
-    displayName = feed.title ?? null;
-    latestTitle = feed.items?.[0]?.title ?? null;
-  } catch {
+  let resolvedUrl: string | null = null;
+  for (const rssUrl of urlsToTry) {
+    try {
+      const feed = await parser.parseURL(rssUrl);
+      displayName = feed.title ?? null;
+      latestTitle = feed.items?.[0]?.title ?? null;
+      resolvedUrl = rssUrl;
+      break;
+    } catch {
+      continue;
+    }
+  }
+  if (!resolvedUrl || displayName === undefined) {
     return NextResponse.json({ error: "Feed not found or invalid. Check the username or slug." }, { status: 422 });
   }
 
-  // Upsert user_connectors row
+  // Store external_id in the same form as the URL that worked (e.g. @robiwells for profiles)
+  const feedAtPrefix = "/feed/@";
+  const slugAfterAt = resolvedUrl.split(feedAtPrefix)[1]?.split("/")[0]?.trim() ?? "";
+  const storedExternalId = resolvedUrl.includes(feedAtPrefix) && slugAfterAt
+    ? "@" + slugAfterAt
+    : externalId;
+
+  // Upsert user_connectors row (use storedExternalId so profile feeds store @username)
   const supabase = createSupabaseAdmin();
   const { error: upsertError } = await supabase
     .from("user_connectors")
@@ -68,7 +92,7 @@ export async function POST(request: Request) {
       {
         user_id: user.userId,
         type: "medium",
-        external_id: externalId,
+        external_id: storedExternalId,
         display_name: displayName,
       },
       { onConflict: "user_id,type,external_id" }
@@ -84,13 +108,13 @@ export async function POST(request: Request) {
     .select("id")
     .eq("user_id", user.userId)
     .eq("type", "medium")
-    .eq("external_id", externalId)
+    .eq("external_id", storedExternalId)
     .maybeSingle();
 
   return NextResponse.json({
     ok: true,
     id: row?.id ?? null,
-    external_id: externalId,
+    external_id: storedExternalId,
     display_name: displayName,
     latest_title: latestTitle,
   });
