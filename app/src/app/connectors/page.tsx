@@ -30,8 +30,8 @@ export default async function ConnectorsPage() {
     .eq("user_id", user.userId)
     .eq("type", "medium")
     .eq("active", true)
-    .limit(1);
-  const mediumConnector = mediumConnectors?.[0] ?? null;
+    .order("created_at", { ascending: true });
+  const initialMediumConnectors = mediumConnectors ?? [];
 
   const appSlug = process.env.GITHUB_APP_SLUG;
   const installAppUrl =
@@ -102,10 +102,7 @@ export default async function ConnectorsPage() {
         </p>
       )}
 
-      <MediumConnector
-        initialConnected={!!mediumConnector}
-        initialDisplayName={mediumConnector?.display_name ?? null}
-      />
+      <MediumConnector initialConnectors={initialMediumConnectors} />
       </div>
     </main>
   );

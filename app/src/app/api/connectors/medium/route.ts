@@ -79,5 +79,69 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to save connector" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, display_name: displayName, latest_title: latestTitle });
+  const { data: row } = await supabase
+    .from("user_connectors")
+    .select("id")
+    .eq("user_id", user.userId)
+    .eq("type", "medium")
+    .eq("external_id", externalId)
+    .maybeSingle();
+
+  return NextResponse.json({
+    ok: true,
+    id: row?.id ?? null,
+    external_id: externalId,
+    display_name: displayName,
+    latest_title: latestTitle,
+  });
+}
+
+/** Remove (deactivate) one Medium connector by id. Verifies ownership. */
+export async function DELETE(request: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  }
+
+  const user = session.user as { userId?: string };
+  if (!user.userId) {
+    return NextResponse.json({ error: "User not found" }, { status: 400 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id")?.trim();
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const supabase = createSupabaseAdmin();
+  const { data: connector } = await supabase
+    .from("user_connectors")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", user.userId)
+    .eq("type", "medium")
+    .eq("active", true)
+    .maybeSingle();
+
+  if (!connector) {
+    return NextResponse.json({ error: "Connector not found" }, { status: 404 });
+  }
+
+  const { error: connectorError } = await supabase
+    .from("user_connectors")
+    .update({ active: false })
+    .eq("id", connector.id);
+
+  if (connectorError) {
+    console.error("[connectors/medium] DELETE deactivate failed", connectorError);
+    return NextResponse.json({ error: "Failed to remove connector" }, { status: 500 });
+  }
+
+  await supabase
+    .from("project_connector_sources")
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq("user_connector_id", connector.id);
+
+  return NextResponse.json({ ok: true });
 }
