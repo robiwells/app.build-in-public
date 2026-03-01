@@ -7,6 +7,7 @@ import { ActivityItem } from "@/components/ActivityItem";
 import { CommentForm } from "@/components/CommentForm";
 import { DeleteCommentButton } from "@/components/DeleteCommentButton";
 import { ProjectTabs } from "@/components/ProjectTabs";
+import { ProjectTodoList } from "@/components/ProjectTodoList";
 import { levelProgressPct, xpInCurrentLevel, xpToNextLevel } from "@/lib/xp";
 
 export const revalidate = 30;
@@ -56,6 +57,13 @@ type FeedItem = {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type ProjectTodo = {
+  id: string;
+  text: string;
+  completed: boolean;
+  position: number;
+};
+
 async function getProjectData(
   username: string,
   slugOrId: string,
@@ -66,6 +74,7 @@ async function getProjectData(
   feed: FeedItem[];
   nextCursor: string | null;
   comments: ProjectComment[];
+  todos: ProjectTodo[];
 } | null> {
   const supabase = createSupabaseAdmin();
   const limit = 20;
@@ -211,6 +220,14 @@ async function getProjectData(
     };
   });
 
+  const { data: todoRows } = await supabase
+    .from("project_todos")
+    .select("id, text, completed, position")
+    .eq("project_id", projectId)
+    .order("position", { ascending: true });
+
+  const todos = (todoRows ?? []) as ProjectTodo[];
+
   return {
     user,
     project: {
@@ -223,6 +240,7 @@ async function getProjectData(
     feed,
     nextCursor,
     comments,
+    todos,
   };
 }
 
@@ -276,7 +294,7 @@ export default async function ProjectPage({
 
   if (!data) notFound();
 
-  const { user, project, feed, nextCursor, comments } = data;
+  const { user, project, feed, nextCursor, comments, todos } = data;
   const isOwner = sessionUser?.userId === user.id;
   const sessionUserId = sessionUser?.userId ?? null;
   const initialTab = tab === "discussion" ? "discussion" : "activity";
@@ -466,6 +484,14 @@ export default async function ProjectPage({
           </div>
         )}
       </header>
+
+      {(isOwner || todos.length > 0) && (
+        <ProjectTodoList
+          projectId={project.id}
+          initialTodos={todos}
+          isOwner={isOwner}
+        />
+      )}
 
       <ProjectTabs
         commentsCount={project.comments_count}
