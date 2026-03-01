@@ -228,12 +228,23 @@ async function getProjectData(
     .eq("project_id", projectId)
     .order("position", { ascending: true });
 
+  const { data: checklistRows } = await supabaseAny
+    .from("project_board_checklist_items")
+    .select("id, card_id, text, completed, position")
+    .eq("project_id", projectId)
+    .order("position", { ascending: true });
+
   const columns: KanbanColumn[] = (columnRows ?? []).map(
     (col: { id: string; name: string; position: number }) => ({
       ...col,
-      cards: (cardRows ?? []).filter(
-        (card: { column_id: string }) => card.column_id === col.id
-      ),
+      cards: (cardRows ?? [])
+        .filter((card: { column_id: string }) => card.column_id === col.id)
+        .map((card: { id: string; column_id: string; title: string; description: string | null; position: number }) => ({
+          ...card,
+          checklist: (checklistRows ?? []).filter(
+            (item: { card_id: string }) => item.card_id === card.id
+          ),
+        })),
     })
   );
 

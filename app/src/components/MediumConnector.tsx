@@ -47,13 +47,11 @@ export function MediumConnector({
         return;
       }
       if (data.id && data.external_id) {
+        const id = data.id;
+        const external_id = data.external_id;
         setConnectors((prev) => [
           ...prev,
-          {
-            id: data.id,
-            external_id: data.external_id,
-            display_name: data.display_name ?? null,
-          },
+          { id, external_id, display_name: data.display_name ?? null },
         ]);
       }
       setLatestTitle(data.latest_title ?? null);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -19,12 +19,21 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+export type ChecklistItem = {
+  id: string;
+  card_id: string;
+  text: string;
+  completed: boolean;
+  position: number;
+};
+
 export type KanbanCard = {
   id: string;
   column_id: string;
   title: string;
   description: string | null;
   position: number;
+  checklist: ChecklistItem[];
 };
 
 export type KanbanColumn = {
@@ -101,6 +110,15 @@ function KanbanCardItem({
           {card.description && (
             <p className="mt-1 text-xs text-[#78716c] line-clamp-2">{card.description}</p>
           )}
+          {card.checklist.length > 0 && (
+            <span className="mt-1 inline-flex items-center gap-1 text-xs text-[#78716c]">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" className="shrink-0">
+                <rect x="0.5" y="0.5" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1"/>
+                <path d="M2.5 5.5L4.5 7.5L8.5 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {card.checklist.filter(i => i.completed).length}/{card.checklist.length}
+            </span>
+          )}
         </div>
         {isOwner && (
           <button
@@ -135,14 +153,20 @@ function EditCardForm({
   card,
   onSave,
   onCancel,
+  onChecklistChange,
 }: {
   card: KanbanCard;
   onSave: (title: string, description: string) => Promise<void>;
   onCancel: () => void;
+  onChecklistChange: (cardId: string, items: ChecklistItem[]) => void;
 }) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description ?? "");
   const [saving, setSaving] = useState(false);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(card.checklist);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemText, setEditingItemText] = useState("");
+  const [newItemText, setNewItemText] = useState("");
 
   async function handleSave() {
     if (!title.trim() || saving) return;
@@ -151,8 +175,61 @@ function EditCardForm({
     setSaving(false);
   }
 
+  async function handleToggleItem(item: ChecklistItem) {
+    const updated = checklist.map((i) =>
+      i.id === item.id ? { ...i, completed: !i.completed } : i
+    );
+    setChecklist(updated);
+    onChecklistChange(card.id, updated);
+    await fetch(`/api/board/checklist/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed: !item.completed }),
+    });
+  }
+
+  async function handleSaveItemText(item: ChecklistItem) {
+    const text = editingItemText.trim();
+    setEditingItemId(null);
+    if (!text || text === item.text) return;
+    const updated = checklist.map((i) =>
+      i.id === item.id ? { ...i, text } : i
+    );
+    setChecklist(updated);
+    onChecklistChange(card.id, updated);
+    await fetch(`/api/board/checklist/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+  }
+
+  async function handleDeleteItem(itemId: string) {
+    const updated = checklist.filter((i) => i.id !== itemId);
+    setChecklist(updated);
+    onChecklistChange(card.id, updated);
+    await fetch(`/api/board/checklist/${itemId}`, { method: "DELETE" });
+  }
+
+  async function handleAddItem() {
+    const text = newItemText.trim();
+    if (!text) return;
+    setNewItemText("");
+    const res = await fetch(`/api/board/cards/${card.id}/checklist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (res.ok) {
+      const { item } = await res.json();
+      const updated = [...checklist, item];
+      setChecklist(updated);
+      onChecklistChange(card.id, updated);
+    }
+  }
+
   return (
-    <div className="rounded-lg bg-white border border-amber-400 p-3 shadow-sm space-y-2">
+    <div className="rounded-lg bg-white border border-amber-400 p-5 shadow-sm space-y-2">
       <input
         autoFocus
         type="text"
@@ -170,6 +247,73 @@ function EditCardForm({
         placeholder="Description (optional)"
         className="w-full resize-none text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400"
       />
+
+      {/* Checklist */}
+      <div>
+        <p className="text-xs font-medium text-[#78716c] mb-1.5">Checklist</p>
+        {checklist.length > 0 && (
+          <div className="space-y-1 mb-2">
+            {checklist.map((item) => (
+              <div key={item.id} className="group flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={item.completed}
+                  onChange={() => handleToggleItem(item)}
+                  className="h-4 w-4 shrink-0 cursor-pointer rounded border border-[#d6cfc6] accent-amber-400"
+                />
+                {editingItemId === item.id ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    value={editingItemText}
+                    onChange={(e) => setEditingItemText(e.target.value)}
+                    onBlur={() => handleSaveItemText(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setEditingItemId(null);
+                    }}
+                    maxLength={200}
+                    className="flex-1 rounded border border-amber-400 px-1.5 py-0.5 text-sm text-[#2a1f14] focus:outline-none"
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setEditingItemId(item.id); setEditingItemText(item.text); }}
+                    className={`flex-1 text-left text-sm ${item.completed ? "line-through text-[#a8a29e]" : "text-[#2a1f14]"}`}
+                  >
+                    {item.text}
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDeleteItem(item.id)}
+                  className="shrink-0 text-[#d6cfc6] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-base leading-none"
+                  aria-label="Delete item"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newItemText}
+            onChange={(e) => setNewItemText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddItem(); } }}
+            maxLength={200}
+            placeholder="Add item…"
+            className="flex-1 text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400"
+          />
+          <button
+            onClick={handleAddItem}
+            disabled={!newItemText.trim()}
+            className="rounded-lg bg-[#f5f0e8] border border-[#e8ddd0] px-3 py-1.5 text-xs font-medium text-[#78716c] hover:bg-[#ece7df] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
       <div className="flex gap-2">
         <button
           onClick={handleSave}
@@ -199,9 +343,6 @@ function KanbanColumnItem({
   onAddCard,
   onDeleteCard,
   onEditCard,
-  editingCardId,
-  setEditingCardId,
-  onSaveCard,
 }: {
   column: KanbanColumn;
   isOwner: boolean;
@@ -210,9 +351,6 @@ function KanbanColumnItem({
   onAddCard: (columnId: string, title: string, description: string) => Promise<void>;
   onDeleteCard: (cardId: string) => void;
   onEditCard: (card: KanbanCard) => void;
-  editingCardId: string | null;
-  setEditingCardId: (id: string | null) => void;
-  onSaveCard: (card: KanbanCard, title: string, description: string) => Promise<void>;
 }) {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(column.name);
@@ -314,27 +452,15 @@ function KanbanColumnItem({
       {/* Cards */}
       <SortableContext items={column.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-2">
-          {column.cards.map((card) =>
-            editingCardId === card.id ? (
-              <EditCardForm
-                key={card.id}
-                card={card}
-                onSave={async (t, d) => {
-                  await onSaveCard(card, t, d);
-                  setEditingCardId(null);
-                }}
-                onCancel={() => setEditingCardId(null)}
-              />
-            ) : (
-              <KanbanCardItem
-                key={card.id}
-                card={card}
-                isOwner={isOwner}
-                onDelete={onDeleteCard}
-                onEdit={(c) => { onEditCard(c); setEditingCardId(c.id); }}
-              />
-            )
-          )}
+          {column.cards.map((card) => (
+            <KanbanCardItem
+              key={card.id}
+              card={card}
+              isOwner={isOwner}
+              onDelete={onDeleteCard}
+              onEdit={(c) => onEditCard(c)}
+            />
+          ))}
         </div>
       </SortableContext>
 
@@ -420,6 +546,13 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
   const [addingColSubmit, setAddingColSubmit] = useState(false);
   const newColInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!editingCardId) return;
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setEditingCardId(null); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editingCardId]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -504,10 +637,17 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
       const { card } = await res.json();
       setColumns((cols) =>
         cols.map((c) =>
-          c.id === columnId ? { ...c, cards: [...c.cards, card] } : c
+          c.id === columnId ? { ...c, cards: [...c.cards, { ...card, checklist: [] }] } : c
         )
       );
     }
+  }
+
+  function handleChecklistChange(cardId: string, items: ChecklistItem[]) {
+    setColumns((cols) => cols.map((c) => ({
+      ...c,
+      cards: c.cards.map((card) => card.id === cardId ? { ...card, checklist: items } : card),
+    })));
   }
 
   async function handleDeleteCard(cardId: string) {
@@ -662,10 +802,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
                     onRenameColumn={handleRenameColumn}
                     onAddCard={handleAddCard}
                     onDeleteCard={handleDeleteCard}
-                    onEditCard={() => {}}
-                    editingCardId={editingCardId}
-                    setEditingCardId={setEditingCardId}
-                    onSaveCard={handleSaveCard}
+                    onEditCard={(card) => setEditingCardId(card.id)}
                   />
                 ))}
 
@@ -723,6 +860,29 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
           </DragOverlay>
         </DndContext>
       )}
+
+      {editingCardId && (() => {
+        const editingCard = columns.flatMap((c) => c.cards).find((c) => c.id === editingCardId);
+        if (!editingCard) return null;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setEditingCardId(null)}
+          >
+            <div
+              className="w-full max-w-lg rounded-xl bg-white shadow-lg overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <EditCardForm
+                card={editingCard}
+                onSave={async (t, d) => { await handleSaveCard(editingCard, t, d); setEditingCardId(null); }}
+                onCancel={() => setEditingCardId(null)}
+                onChecklistChange={handleChecklistChange}
+              />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
