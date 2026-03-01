@@ -470,7 +470,7 @@ function KanbanColumnItem({
 
       {/* Cards */}
       <SortableContext items={column.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2 min-h-[3rem]">
+        <div className="flex flex-col gap-2">
           {column.cards.map((card) => (
             <KanbanCardItem
               key={card.id}
