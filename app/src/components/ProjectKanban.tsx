@@ -342,19 +342,30 @@ function KanbanColumnItem({
   const [addingCard, setAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const committingRef = useRef(false);
 
   useEffect(() => {
     if (!menuOpen) return;
     function handleMouseDown(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+          triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
   }, [menuOpen]);
+
+  function openMenu() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    setMenuOpen((o) => !o);
+  }
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: column.id,
@@ -434,18 +445,21 @@ function KanbanColumnItem({
         )}
 
         {isOwner && (
-          <div ref={menuRef} className="relative shrink-0 opacity-0 group-hover:opacity-100">
+          <div className="shrink-0 opacity-0 group-hover:opacity-100">
             <button
+              ref={triggerRef}
               type="button"
-              onClick={() => setMenuOpen((o) => !o)}
+              onClick={openMenu}
               className="rounded p-1 text-[#a8a29e] hover:bg-[#ede8df] hover:text-[#78716c] focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30"
               aria-label="Column options"
             >
               <span className="inline-flex h-4 w-4 items-center justify-center text-base leading-none">⋯</span>
             </button>
             <div
+              ref={menuRef}
+              style={menuPos ? { top: menuPos.top, right: menuPos.right } : {}}
               className={[
-                "absolute right-0 top-full z-50 mt-1 w-48 origin-top-right rounded-lg border border-[#e8ddd0] bg-white py-1 shadow-lg transition-[opacity,transform] duration-100",
+                "fixed z-50 w-48 origin-top-right rounded-lg border border-[#e8ddd0] bg-white py-1 shadow-lg transition-[opacity,transform] duration-100",
                 menuOpen ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0",
               ].join(" ")}
             >
