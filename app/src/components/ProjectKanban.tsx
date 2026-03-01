@@ -390,10 +390,10 @@ function KanbanColumnItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3 flex flex-col gap-2"
+      className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3 flex flex-col gap-2 group"
     >
       {/* Column header */}
-      <div className="flex items-center gap-2 group">
+      <div className="flex items-center gap-2">
         {isOwner && (
           <button
             {...attributes}
