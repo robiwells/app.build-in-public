@@ -541,7 +541,17 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
   // Add column inline state
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
-  const [addingColSubmit, setAddingColSubmit] = useState(false);
+  const addingColRef = useRef(false);
+  const [expandOpen, setExpandOpen] = useState(false);
+
+  useEffect(() => {
+    if (!expandOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setExpandOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [expandOpen]);
   const newColInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -581,25 +591,29 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
 
   // ---------- Column actions ----------
 
-  async function handleAddColumn(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCommitColumn() {
+    if (addingColRef.current) return;
+    addingColRef.current = true;
     const name = newColName.trim();
-    if (!name || addingColSubmit) return;
-    setAddingColSubmit(true);
+    setAddingColumn(false);
+    setNewColName("");
+    if (name) {
+      const tempId = `temp-${Date.now()}`;
+      setColumns((prev) => [...prev, { id: tempId, name, position: prev.length, cards: [] }]);
 
-    const res = await fetch(`/api/projects/${projectId}/board/columns`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-
-    if (res.ok) {
-      const { column } = await res.json();
-      setColumns((prev) => [...prev, { ...column, cards: [] }]);
-      setNewColName("");
-      setAddingColumn(false);
+      const res = await fetch(`/api/projects/${projectId}/board/columns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        const { column } = await res.json();
+        setColumns((prev) => prev.map((c) => c.id === tempId ? { ...column, cards: [] } : c));
+      } else {
+        setColumns((prev) => prev.filter((c) => c.id !== tempId));
+      }
     }
-    setAddingColSubmit(false);
+    addingColRef.current = false;
   }
 
   async function handleDeleteColumn(columnId: string) {
@@ -803,9 +817,9 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
 
   // ---------- Render ----------
 
-  return (
-    <div className="mt-6 mb-0">
-      {isOwner && columns.length === 0 ? (
+  function renderBoardBody(inModal = false) {
+    if (isOwner && columns.length === 0) {
+      return (
         <div className="rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-6 text-center">
           <p className="text-sm text-[#78716c] mb-3">No columns yet. Set up default columns to get started.</p>
           <button
@@ -816,101 +830,151 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
             {settingUp ? "Setting up…" : "Set up board"}
           </button>
         </div>
+      );
+    }
+
+    return (
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className={inModal ? "pb-3" : "overflow-x-auto pb-3"}>
+          <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+            <div className="flex gap-3 items-start" style={{ minWidth: "max-content" }}>
+              {columns.map((column) => (
+                <KanbanColumnItem
+                  key={column.id}
+                  column={column}
+                  isOwner={isOwner}
+                  onDeleteColumn={handleDeleteColumn}
+                  onClearColumn={handleClearColumn}
+                  onRenameColumn={handleRenameColumn}
+                  onAddCard={handleAddCard}
+                  onDeleteCard={handleDeleteCard}
+                  onEditCard={(card) => setEditingCardId(card.id)}
+                />
+              ))}
+
+              {/* Add column */}
+              {isOwner && (
+                addingColumn ? (
+                  <div className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3">
+                    <input
+                      ref={newColInputRef}
+                      autoFocus
+                      type="text"
+                      value={newColName}
+                      onChange={(e) => setNewColName(e.target.value)}
+                      onBlur={handleCommitColumn}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+                        if (e.key === "Escape") { addingColRef.current = true; setAddingColumn(false); setNewColName(""); }
+                      }}
+                      maxLength={50}
+                      placeholder="Column name"
+                      className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setAddingColumn(true); setTimeout(() => newColInputRef.current?.focus(), 50); }}
+                    className="w-64 shrink-0 rounded-xl border border-dashed border-[#d6cfc6] p-3 text-sm text-[#a8a29e] hover:border-[#b5522a] hover:text-[#b5522a] transition-colors text-left"
+                  >
+                    + Add column
+                  </button>
+                )
+              )}
+            </div>
+          </SortableContext>
+        </div>
+
+        <DragOverlay>
+          {activeCard && <CardGhost card={activeCard} />}
+          {activeColumn && <ColumnGhost column={activeColumn} />}
+        </DragOverlay>
+      </DndContext>
+    );
+  }
+
+  const editingCard = editingCardId
+    ? columns.flatMap((c) => c.cards).find((c) => c.id === editingCardId)
+    : null;
+
+  return (
+    <div className="mt-6 mb-0">
+      {/* Section header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-medium text-[#78716c]">Board</span>
+        {columns.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpandOpen(true)}
+            className="rounded p-1 text-[#a8a29e] hover:bg-[#f5f0e8] hover:text-[#78716c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30"
+            aria-label="Expand board"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Inline board (hidden when modal is open) */}
+      {expandOpen ? (
+        <div className="rounded-xl bg-[#f5f0e8] border border-dashed border-[#d6cfc6] h-24 flex items-center justify-center">
+          <span className="text-sm text-[#a8a29e]">Board open in expanded view</span>
+        </div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="overflow-x-auto pb-3">
-            <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
-              <div className="flex gap-3 items-start" style={{ minWidth: "max-content" }}>
-                {columns.map((column) => (
-                  <KanbanColumnItem
-                    key={column.id}
-                    column={column}
-                    isOwner={isOwner}
-                    onDeleteColumn={handleDeleteColumn}
-                    onClearColumn={handleClearColumn}
-                    onRenameColumn={handleRenameColumn}
-                    onAddCard={handleAddCard}
-                    onDeleteCard={handleDeleteCard}
-                    onEditCard={(card) => setEditingCardId(card.id)}
-                  />
-                ))}
-
-                {/* Add column */}
-                {isOwner && (
-                  addingColumn ? (
-                    <form
-                      onSubmit={handleAddColumn}
-                      className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3 flex flex-col gap-2"
-                    >
-                      <input
-                        ref={newColInputRef}
-                        autoFocus
-                        type="text"
-                        value={newColName}
-                        onChange={(e) => setNewColName(e.target.value)}
-                        maxLength={50}
-                        placeholder="Column name"
-                        className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
-                        onKeyDown={(e) => { if (e.key === "Escape") { setAddingColumn(false); setNewColName(""); } }}
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={!newColName.trim() || addingColSubmit}
-                          className="rounded-lg bg-[#b5522a] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#9e4524] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Add column
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setAddingColumn(false); setNewColName(""); }}
-                          className="rounded-lg border border-[#e8ddd0] px-3 py-1.5 text-xs font-medium text-[#78716c] hover:bg-[#ece7df] transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <button
-                      onClick={() => { setAddingColumn(true); setTimeout(() => newColInputRef.current?.focus(), 50); }}
-                      className="w-64 shrink-0 rounded-xl border border-dashed border-[#d6cfc6] p-3 text-sm text-[#a8a29e] hover:border-[#b5522a] hover:text-[#b5522a] transition-colors text-left"
-                    >
-                      + Add column
-                    </button>
-                  )
-                )}
-              </div>
-            </SortableContext>
-          </div>
-
-          <DragOverlay>
-            {activeCard && <CardGhost card={activeCard} />}
-            {activeColumn && <ColumnGhost column={activeColumn} />}
-          </DragOverlay>
-        </DndContext>
+        renderBoardBody()
       )}
 
-      {editingCardId && (() => {
-        const editingCard = columns.flatMap((c) => c.cards).find((c) => c.id === editingCardId);
-        if (!editingCard) return null;
-        return (
+      {/* Expanded board modal */}
+      {expandOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40"
+          onClick={() => setExpandOpen(false)}
+        >
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onClick={() => setEditingCardId(null)}
+            className="fixed inset-4 z-50 rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="w-full max-w-lg rounded-xl bg-white shadow-lg overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <EditCardForm
-                card={editingCard}
-                onSave={async (t, d) => { await handleSaveCard(editingCard, t, d); }}
-                onChecklistChange={handleChecklistChange}
-              />
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-[#e8ddd0] px-4 py-3 shrink-0">
+              <span className="font-semibold text-[#2a1f14]">Board</span>
+              <button
+                type="button"
+                onClick={() => setExpandOpen(false)}
+                className="rounded-lg p-1 text-[#78716c] hover:bg-[#f5f0e8] hover:text-[#2a1f14] transition-colors"
+                aria-label="Close expanded board"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M3 3l10 10M13 3L3 13" />
+                </svg>
+              </button>
+            </div>
+            {/* Modal body */}
+            <div className="flex-1 overflow-auto p-4">
+              {renderBoardBody(true)}
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {/* Card edit modal */}
+      {editingCard && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setEditingCardId(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl bg-white shadow-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <EditCardForm
+              card={editingCard}
+              onSave={async (t, d) => { await handleSaveCard(editingCard, t, d); }}
+              onChecklistChange={handleChecklistChange}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
