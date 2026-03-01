@@ -2,69 +2,68 @@ import { createSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-type OwnedTodo = { id: string; project_id: string; projects: { user_id: string } };
+type OwnedColumn = { id: string; project_id: string; projects: { user_id: string } };
 
-async function getOwnedTodo(todoId: string, userId: string) {
+async function getOwnedColumn(columnId: string, userId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createSupabaseAdmin() as any;
 
-  const { data: todo } = await supabase
-    .from("project_todos")
+  const { data: col } = await supabase
+    .from("project_board_columns")
     .select("id, project_id, projects(user_id)")
-    .eq("id", todoId)
-    .maybeSingle() as { data: OwnedTodo | null };
+    .eq("id", columnId)
+    .maybeSingle() as { data: OwnedColumn | null };
 
-  if (!todo) return { todo: null, supabase, error: "not_found" as const };
+  if (!col) return { col: null, supabase, error: "not_found" as const };
+  if (col.projects.user_id !== userId) return { col: null, supabase, error: "forbidden" as const };
 
-  if (todo.projects.user_id !== userId) {
-    return { todo: null, supabase, error: "forbidden" as const };
-  }
-
-  return { todo, supabase, error: null };
+  return { col, supabase, error: null };
 }
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ todoId: string }> }
+  { params }: { params: Promise<{ columnId: string }> }
 ) {
-  const { todoId } = await params;
+  const { columnId } = await params;
   const session = await auth();
   const userId = (session?.user as { userId?: string })?.userId;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  const { todo, supabase, error } = await getOwnedTodo(todoId, userId);
+  const { col, supabase, error } = await getOwnedColumn(columnId, userId);
   if (error === "not_found") return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (error === "forbidden") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  let body: { completed?: boolean; text?: string };
+  let body: { name?: string; position?: number };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (body.completed === undefined && body.text === undefined) {
+  if (body.name === undefined && body.position === undefined) {
     return NextResponse.json({ error: "At least one field required" }, { status: 400 });
   }
 
-  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (body.completed !== undefined) updates.completed = body.completed;
-  if (body.text !== undefined) {
-    const text = typeof body.text === "string" ? body.text.trim() : "";
-    if (!text) return NextResponse.json({ error: "Text is required" }, { status: 400 });
-    if (text.length > 200) return NextResponse.json({ error: "Text must be 200 characters or fewer" }, { status: 400 });
-    updates.text = text;
+  const updates: Record<string, unknown> = {};
+  if (body.name !== undefined) {
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    if (name.length > 50) return NextResponse.json({ error: "Name must be 50 characters or fewer" }, { status: 400 });
+    updates.name = name;
+  }
+  if (body.position !== undefined) {
+    updates.position = body.position;
   }
 
   const { error: updateErr } = await supabase
-    .from("project_todos")
+    .from("project_board_columns")
     .update(updates)
-    .eq("id", todo!.id);
+    .eq("id", col!.id);
 
   if (updateErr) {
-    console.error("PATCH /api/todos/[todoId] error:", updateErr);
+    console.error("PATCH /api/board/columns/[columnId] error:", updateErr);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
@@ -73,26 +72,26 @@ export async function PATCH(
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: Promise<{ todoId: string }> }
+  { params }: { params: Promise<{ columnId: string }> }
 ) {
-  const { todoId } = await params;
+  const { columnId } = await params;
   const session = await auth();
   const userId = (session?.user as { userId?: string })?.userId;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  const { todo, supabase, error } = await getOwnedTodo(todoId, userId);
+  const { col, supabase, error } = await getOwnedColumn(columnId, userId);
   if (error === "not_found") return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (error === "forbidden") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { error: deleteErr } = await supabase
-    .from("project_todos")
+    .from("project_board_columns")
     .delete()
-    .eq("id", todo!.id);
+    .eq("id", col!.id);
 
   if (deleteErr) {
-    console.error("DELETE /api/todos/[todoId] error:", deleteErr);
+    console.error("DELETE /api/board/columns/[columnId] error:", deleteErr);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 

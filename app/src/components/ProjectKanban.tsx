@@ -1,0 +1,728 @@
+"use client";
+
+import { useState, useRef } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+export type KanbanCard = {
+  id: string;
+  column_id: string;
+  title: string;
+  description: string | null;
+  position: number;
+};
+
+export type KanbanColumn = {
+  id: string;
+  name: string;
+  position: number;
+  cards: KanbanCard[];
+};
+
+type Props = {
+  projectId: string;
+  initialColumns: KanbanColumn[];
+  isOwner: boolean;
+};
+
+const DEFAULT_COLUMNS = ["To Do", "In Progress", "Done"];
+
+// ---------- Card component ----------
+
+function KanbanCardItem({
+  card,
+  isOwner,
+  onDelete,
+  onEdit,
+}: {
+  card: KanbanCard;
+  isOwner: boolean;
+  onDelete: (id: string) => void;
+  onEdit: (card: KanbanCard) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: card.id,
+    data: { type: "card", card },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group relative rounded-lg bg-white border border-[#e8ddd0] p-3 shadow-sm"
+    >
+      <div className="flex items-start gap-2">
+        {isOwner && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="mt-0.5 shrink-0 cursor-grab text-[#d6cfc6] hover:text-[#a8a29e] active:cursor-grabbing"
+            aria-label="Drag card"
+          >
+            <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
+              <circle cx="4" cy="3" r="1.5" />
+              <circle cx="8" cy="3" r="1.5" />
+              <circle cx="4" cy="8" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="4" cy="13" r="1.5" />
+              <circle cx="8" cy="13" r="1.5" />
+            </svg>
+          </button>
+        )}
+        <div className="min-w-0 flex-1">
+          <button
+            onClick={() => isOwner && onEdit(card)}
+            className={`w-full text-left text-sm font-medium text-[#2a1f14] ${isOwner ? "hover:text-[#b5522a]" : ""}`}
+            disabled={!isOwner}
+          >
+            {card.title}
+          </button>
+          {card.description && (
+            <p className="mt-1 text-xs text-[#78716c] line-clamp-2">{card.description}</p>
+          )}
+        </div>
+        {isOwner && (
+          <button
+            onClick={() => onDelete(card.id)}
+            className="shrink-0 text-[#d6cfc6] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-base leading-none"
+            aria-label="Delete card"
+          >
+            ×
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Ghost card for DragOverlay ----------
+
+function CardGhost({ card }: { card: KanbanCard }) {
+  return (
+    <div className="rounded-lg bg-white border border-[#e8ddd0] p-3 shadow-md opacity-90 w-64">
+      <p className="text-sm font-medium text-[#2a1f14]">{card.title}</p>
+      {card.description && (
+        <p className="mt-1 text-xs text-[#78716c] line-clamp-2">{card.description}</p>
+      )}
+    </div>
+  );
+}
+
+// ---------- Edit card form ----------
+
+function EditCardForm({
+  card,
+  onSave,
+  onCancel,
+}: {
+  card: KanbanCard;
+  onSave: (title: string, description: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(card.title);
+  const [description, setDescription] = useState(card.description ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!title.trim() || saving) return;
+    setSaving(true);
+    await onSave(title.trim(), description.trim());
+    setSaving(false);
+  }
+
+  return (
+    <div className="rounded-lg bg-white border border-amber-400 p-3 shadow-sm space-y-2">
+      <input
+        autoFocus
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        maxLength={200}
+        placeholder="Card title"
+        className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400"
+      />
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        maxLength={2000}
+        rows={3}
+        placeholder="Description (optional)"
+        className="w-full resize-none text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400"
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={!title.trim() || saving}
+          className="rounded-lg bg-[#b5522a] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#9e4524] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Save
+        </button>
+        <button
+          onClick={onCancel}
+          className="rounded-lg border border-[#e8ddd0] px-3 py-1.5 text-xs font-medium text-[#78716c] hover:bg-[#f5f0e8] transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Column component ----------
+
+function KanbanColumnItem({
+  column,
+  isOwner,
+  onDeleteColumn,
+  onRenameColumn,
+  onAddCard,
+  onDeleteCard,
+  onEditCard,
+  editingCardId,
+  setEditingCardId,
+  onSaveCard,
+}: {
+  column: KanbanColumn;
+  isOwner: boolean;
+  onDeleteColumn: (id: string) => void;
+  onRenameColumn: (id: string, name: string) => void;
+  onAddCard: (columnId: string, title: string, description: string) => Promise<void>;
+  onDeleteCard: (cardId: string) => void;
+  onEditCard: (card: KanbanCard) => void;
+  editingCardId: string | null;
+  setEditingCardId: (id: string | null) => void;
+  onSaveCard: (card: KanbanCard, title: string, description: string) => Promise<void>;
+}) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(column.name);
+  const [addingCard, setAddingCard] = useState(false);
+  const [newCardTitle, setNewCardTitle] = useState("");
+  const [newCardDesc, setNewCardDesc] = useState("");
+  const [addingSubmit, setAddingSubmit] = useState(false);
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: column.id,
+    data: { type: "column" },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  async function handleRenameBlur() {
+    setEditingName(false);
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== column.name) {
+      onRenameColumn(column.id, trimmed);
+    } else {
+      setNameValue(column.name);
+    }
+  }
+
+  async function handleAddCard(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCardTitle.trim() || addingSubmit) return;
+    setAddingSubmit(true);
+    await onAddCard(column.id, newCardTitle.trim(), newCardDesc.trim());
+    setNewCardTitle("");
+    setNewCardDesc("");
+    setAddingCard(false);
+    setAddingSubmit(false);
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3 flex flex-col gap-2"
+    >
+      {/* Column header */}
+      <div className="flex items-center gap-2 group">
+        {isOwner && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="shrink-0 cursor-grab text-[#d6cfc6] hover:text-[#a8a29e] active:cursor-grabbing"
+            aria-label="Drag column"
+          >
+            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+              <circle cx="3" cy="2.5" r="1.5" />
+              <circle cx="7" cy="2.5" r="1.5" />
+              <circle cx="3" cy="7" r="1.5" />
+              <circle cx="7" cy="7" r="1.5" />
+              <circle cx="3" cy="11.5" r="1.5" />
+              <circle cx="7" cy="11.5" r="1.5" />
+            </svg>
+          </button>
+        )}
+
+        {editingName && isOwner ? (
+          <input
+            autoFocus
+            type="text"
+            value={nameValue}
+            onChange={(e) => setNameValue(e.target.value)}
+            onBlur={handleRenameBlur}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { setNameValue(column.name); setEditingName(false); } }}
+            maxLength={50}
+            className="flex-1 rounded px-1 py-0.5 text-sm font-medium text-[#2a1f14] border border-amber-400 focus:outline-none bg-white"
+          />
+        ) : (
+          <button
+            onClick={() => isOwner && setEditingName(true)}
+            className={`flex-1 text-left font-medium text-sm text-[#2a1f14] truncate ${isOwner ? "hover:text-[#b5522a]" : ""}`}
+            disabled={!isOwner}
+          >
+            {column.name}
+          </button>
+        )}
+
+        {isOwner && (
+          <button
+            onClick={() => onDeleteColumn(column.id)}
+            className="shrink-0 text-[#d6cfc6] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-base leading-none"
+            aria-label="Delete column"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* Cards */}
+      <SortableContext items={column.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-2">
+          {column.cards.map((card) =>
+            editingCardId === card.id ? (
+              <EditCardForm
+                key={card.id}
+                card={card}
+                onSave={async (t, d) => {
+                  await onSaveCard(card, t, d);
+                  setEditingCardId(null);
+                }}
+                onCancel={() => setEditingCardId(null)}
+              />
+            ) : (
+              <KanbanCardItem
+                key={card.id}
+                card={card}
+                isOwner={isOwner}
+                onDelete={onDeleteCard}
+                onEdit={(c) => { onEditCard(c); setEditingCardId(c.id); }}
+              />
+            )
+          )}
+        </div>
+      </SortableContext>
+
+      {/* Add card */}
+      {isOwner && (
+        addingCard ? (
+          <form onSubmit={handleAddCard} className="flex flex-col gap-2 mt-1">
+            <input
+              autoFocus
+              type="text"
+              value={newCardTitle}
+              onChange={(e) => setNewCardTitle(e.target.value)}
+              maxLength={200}
+              placeholder="Card title"
+              className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
+            />
+            <textarea
+              value={newCardDesc}
+              onChange={(e) => setNewCardDesc(e.target.value)}
+              maxLength={2000}
+              rows={2}
+              placeholder="Description (optional)"
+              className="w-full resize-none text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={!newCardTitle.trim() || addingSubmit}
+                className="rounded-lg bg-[#b5522a] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#9e4524] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Add card
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAddingCard(false); setNewCardTitle(""); setNewCardDesc(""); }}
+                className="rounded-lg border border-[#e8ddd0] px-3 py-1.5 text-xs font-medium text-[#78716c] hover:bg-[#ece7df] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            onClick={() => setAddingCard(true)}
+            className="mt-1 w-full rounded-lg border border-dashed border-[#d6cfc6] px-3 py-1.5 text-xs text-[#a8a29e] hover:border-[#b5522a] hover:text-[#b5522a] transition-colors text-left"
+          >
+            + Add card
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
+// ---------- Column ghost for DragOverlay ----------
+
+function ColumnGhost({ column }: { column: KanbanColumn }) {
+  return (
+    <div className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3 opacity-90 shadow-lg">
+      <p className="font-medium text-sm text-[#2a1f14]">{column.name}</p>
+      <p className="text-xs text-[#a8a29e] mt-1">{column.cards.length} card{column.cards.length !== 1 ? "s" : ""}</p>
+    </div>
+  );
+}
+
+// ---------- Main board ----------
+
+export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
+  const [columns, setColumns] = useState<KanbanColumn[]>(
+    initialColumns.map((col) => ({
+      ...col,
+      cards: [...col.cards].sort((a, b) => a.position - b.position),
+    })).sort((a, b) => a.position - b.position)
+  );
+  const [activeCard, setActiveCard] = useState<KanbanCard | null>(null);
+  const [activeColumn, setActiveColumn] = useState<KanbanColumn | null>(null);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [settingUp, setSettingUp] = useState(false);
+
+  // Add column inline state
+  const [addingColumn, setAddingColumn] = useState(false);
+  const [newColName, setNewColName] = useState("");
+  const [addingColSubmit, setAddingColSubmit] = useState(false);
+  const newColInputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const hasCards = columns.some((c) => c.cards.length > 0);
+  if (!isOwner && !hasCards) return null;
+
+  // ---------- Setup board ----------
+
+  async function handleSetupBoard() {
+    if (settingUp) return;
+    setSettingUp(true);
+    const created: KanbanColumn[] = [];
+    for (let i = 0; i < DEFAULT_COLUMNS.length; i++) {
+      const res = await fetch(`/api/projects/${projectId}/board/columns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: DEFAULT_COLUMNS[i] }),
+      });
+      if (res.ok) {
+        const { column } = await res.json();
+        created.push({ ...column, cards: [] });
+      }
+    }
+    setColumns(created);
+    setSettingUp(false);
+  }
+
+  // ---------- Column actions ----------
+
+  async function handleAddColumn(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newColName.trim();
+    if (!name || addingColSubmit) return;
+    setAddingColSubmit(true);
+
+    const res = await fetch(`/api/projects/${projectId}/board/columns`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+
+    if (res.ok) {
+      const { column } = await res.json();
+      setColumns((prev) => [...prev, { ...column, cards: [] }]);
+      setNewColName("");
+      setAddingColumn(false);
+    }
+    setAddingColSubmit(false);
+  }
+
+  async function handleDeleteColumn(columnId: string) {
+    const prev = columns;
+    setColumns((cols) => cols.filter((c) => c.id !== columnId));
+
+    const res = await fetch(`/api/board/columns/${columnId}`, { method: "DELETE" });
+    if (!res.ok) setColumns(prev);
+  }
+
+  async function handleRenameColumn(columnId: string, name: string) {
+    const prev = columns;
+    setColumns((cols) => cols.map((c) => c.id === columnId ? { ...c, name } : c));
+
+    const res = await fetch(`/api/board/columns/${columnId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) setColumns(prev);
+  }
+
+  // ---------- Card actions ----------
+
+  async function handleAddCard(columnId: string, title: string, description: string) {
+    const res = await fetch(`/api/projects/${projectId}/board/cards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ column_id: columnId, title, description: description || undefined }),
+    });
+
+    if (res.ok) {
+      const { card } = await res.json();
+      setColumns((cols) =>
+        cols.map((c) =>
+          c.id === columnId ? { ...c, cards: [...c.cards, card] } : c
+        )
+      );
+    }
+  }
+
+  async function handleDeleteCard(cardId: string) {
+    const prev = columns;
+    setColumns((cols) =>
+      cols.map((c) => ({ ...c, cards: c.cards.filter((card) => card.id !== cardId) }))
+    );
+
+    const res = await fetch(`/api/board/cards/${cardId}`, { method: "DELETE" });
+    if (!res.ok) setColumns(prev);
+  }
+
+  async function handleSaveCard(card: KanbanCard, title: string, description: string) {
+    const prev = columns;
+    setColumns((cols) =>
+      cols.map((c) => ({
+        ...c,
+        cards: c.cards.map((cd) =>
+          cd.id === card.id ? { ...cd, title, description: description || null } : cd
+        ),
+      }))
+    );
+
+    const res = await fetch(`/api/board/cards/${card.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, description: description || null }),
+    });
+    if (!res.ok) setColumns(prev);
+  }
+
+  // ---------- DnD ----------
+
+  function handleDragStart(event: DragStartEvent) {
+    const data = event.active.data.current;
+    if (data?.type === "card") setActiveCard(data.card);
+    if (data?.type === "column") {
+      const col = columns.find((c) => c.id === event.active.id);
+      if (col) setActiveColumn(col);
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveCard(null);
+    setActiveColumn(null);
+
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeData = active.data.current;
+
+    if (activeData?.type === "column") {
+      // Reorder columns
+      const oldIndex = columns.findIndex((c) => c.id === active.id);
+      const newIndex = columns.findIndex((c) => c.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const reordered = arrayMove(columns, oldIndex, newIndex).map((c, i) => ({ ...c, position: i }));
+      setColumns(reordered);
+
+      fetch(`/api/board/columns/${active.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: newIndex }),
+      });
+      return;
+    }
+
+    if (activeData?.type === "card") {
+      const card = activeData.card as KanbanCard;
+      const overData = over.data.current;
+
+      // Determine target column
+      let targetColumnId = over.id as string;
+      if (overData?.type === "card") {
+        targetColumnId = overData.card.column_id;
+      }
+
+      const sourceColIdx = columns.findIndex((c) => c.id === card.column_id);
+      const targetColIdx = columns.findIndex((c) => c.id === targetColumnId);
+      if (sourceColIdx === -1 || targetColIdx === -1) return;
+
+      const sourceCards = [...columns[sourceColIdx].cards];
+      const targetCards = sourceColIdx === targetColIdx
+        ? sourceCards
+        : [...columns[targetColIdx].cards];
+
+      const oldCardIdx = sourceCards.findIndex((c) => c.id === card.id);
+
+      // Find position in target
+      let newCardIdx = targetCards.findIndex((c) => c.id === over.id);
+      if (newCardIdx === -1) newCardIdx = targetCards.length;
+
+      const updatedCard = { ...card, column_id: targetColumnId };
+
+      let newColumns: KanbanColumn[];
+      if (sourceColIdx === targetColIdx) {
+        const moved = arrayMove(sourceCards, oldCardIdx, newCardIdx).map((c, i) => ({ ...c, position: i }));
+        newColumns = columns.map((c, i) => i === sourceColIdx ? { ...c, cards: moved } : c);
+      } else {
+        sourceCards.splice(oldCardIdx, 1);
+        targetCards.splice(newCardIdx, 0, updatedCard);
+        const updatedSource = sourceCards.map((c, i) => ({ ...c, position: i }));
+        const updatedTarget = targetCards.map((c, i) => ({ ...c, position: i }));
+        newColumns = columns.map((c, i) => {
+          if (i === sourceColIdx) return { ...c, cards: updatedSource };
+          if (i === targetColIdx) return { ...c, cards: updatedTarget };
+          return c;
+        });
+      }
+
+      setColumns(newColumns);
+
+      fetch(`/api/board/cards/${card.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ column_id: targetColumnId, position: newCardIdx }),
+      });
+    }
+  }
+
+  // ---------- Render ----------
+
+  return (
+    <div className="mt-6 mb-0 pb-8 border-b border-[#e8ddd0]">
+      <h2 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#2a1f14] mb-4">
+        Board
+      </h2>
+
+      {isOwner && columns.length === 0 ? (
+        <div className="rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-6 text-center">
+          <p className="text-sm text-[#78716c] mb-3">No columns yet. Set up default columns to get started.</p>
+          <button
+            onClick={handleSetupBoard}
+            disabled={settingUp}
+            className="rounded-lg bg-[#b5522a] px-4 py-2 text-sm font-medium text-white hover:bg-[#9e4524] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {settingUp ? "Setting up…" : "Set up board"}
+          </button>
+        </div>
+      ) : (
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="overflow-x-auto pb-3">
+            <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+              <div className="flex gap-3 items-start" style={{ minWidth: "max-content" }}>
+                {columns.map((column) => (
+                  <KanbanColumnItem
+                    key={column.id}
+                    column={column}
+                    isOwner={isOwner}
+                    onDeleteColumn={handleDeleteColumn}
+                    onRenameColumn={handleRenameColumn}
+                    onAddCard={handleAddCard}
+                    onDeleteCard={handleDeleteCard}
+                    onEditCard={() => {}}
+                    editingCardId={editingCardId}
+                    setEditingCardId={setEditingCardId}
+                    onSaveCard={handleSaveCard}
+                  />
+                ))}
+
+                {/* Add column */}
+                {isOwner && (
+                  addingColumn ? (
+                    <form
+                      onSubmit={handleAddColumn}
+                      className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3 flex flex-col gap-2"
+                    >
+                      <input
+                        ref={newColInputRef}
+                        autoFocus
+                        type="text"
+                        value={newColName}
+                        onChange={(e) => setNewColName(e.target.value)}
+                        maxLength={50}
+                        placeholder="Column name"
+                        className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
+                        onKeyDown={(e) => { if (e.key === "Escape") { setAddingColumn(false); setNewColName(""); } }}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={!newColName.trim() || addingColSubmit}
+                          className="rounded-lg bg-[#b5522a] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#9e4524] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Add column
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setAddingColumn(false); setNewColName(""); }}
+                          className="rounded-lg border border-[#e8ddd0] px-3 py-1.5 text-xs font-medium text-[#78716c] hover:bg-[#ece7df] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={() => { setAddingColumn(true); setTimeout(() => newColInputRef.current?.focus(), 50); }}
+                      className="w-64 shrink-0 rounded-xl border border-dashed border-[#d6cfc6] p-3 text-sm text-[#a8a29e] hover:border-[#b5522a] hover:text-[#b5522a] transition-colors text-left"
+                    >
+                      + Add column
+                    </button>
+                  )
+                )}
+              </div>
+            </SortableContext>
+          </div>
+
+          <DragOverlay>
+            {activeCard && <CardGhost card={activeCard} />}
+            {activeColumn && <ColumnGhost column={activeColumn} />}
+          </DragOverlay>
+        </DndContext>
+      )}
+    </div>
+  );
+}

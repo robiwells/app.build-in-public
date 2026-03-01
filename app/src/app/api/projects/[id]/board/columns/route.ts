@@ -30,23 +30,23 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let text: string;
+  let name: string;
   try {
     const json = await req.json();
-    text = typeof json?.text === "string" ? json.text.trim() : "";
+    name = typeof json?.name === "string" ? json.name.trim() : "";
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!text) {
-    return NextResponse.json({ error: "Text is required" }, { status: 400 });
+  if (!name) {
+    return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
-  if (text.length > 200) {
-    return NextResponse.json({ error: "Text must be 200 characters or fewer" }, { status: 400 });
+  if (name.length > 50) {
+    return NextResponse.json({ error: "Name must be 50 characters or fewer" }, { status: 400 });
   }
 
   const { data: maxRow } = await supabase
-    .from("project_todos")
+    .from("project_board_columns")
     .select("position")
     .eq("project_id", id)
     .order("position", { ascending: false })
@@ -55,16 +55,16 @@ export async function POST(
 
   const nextPosition = maxRow ? (maxRow as { position: number }).position + 1 : 0;
 
-  const { data: todo, error: insertErr } = await supabase
-    .from("project_todos")
-    .insert({ project_id: id, text, position: nextPosition })
-    .select("id, text, completed, position")
+  const { data: column, error: insertErr } = await supabase
+    .from("project_board_columns")
+    .insert({ project_id: id, name, position: nextPosition })
+    .select("id, name, position")
     .single();
 
-  if (insertErr || !todo) {
-    console.error("POST /api/projects/[id]/todos error:", insertErr);
+  if (insertErr || !column) {
+    console.error("POST /api/projects/[id]/board/columns error:", insertErr);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ todo }, { status: 201 });
+  return NextResponse.json({ column }, { status: 201 });
 }

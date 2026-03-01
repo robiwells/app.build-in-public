@@ -7,7 +7,7 @@ import { ActivityItem } from "@/components/ActivityItem";
 import { CommentForm } from "@/components/CommentForm";
 import { DeleteCommentButton } from "@/components/DeleteCommentButton";
 import { ProjectTabs } from "@/components/ProjectTabs";
-import { ProjectTodoList } from "@/components/ProjectTodoList";
+import { ProjectKanban, type KanbanColumn } from "@/components/ProjectKanban";
 import { levelProgressPct, xpInCurrentLevel, xpToNextLevel } from "@/lib/xp";
 
 export const revalidate = 30;
@@ -57,13 +57,6 @@ type FeedItem = {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ProjectTodo = {
-  id: string;
-  text: string;
-  completed: boolean;
-  position: number;
-};
-
 async function getProjectData(
   username: string,
   slugOrId: string,
@@ -74,7 +67,7 @@ async function getProjectData(
   feed: FeedItem[];
   nextCursor: string | null;
   comments: ProjectComment[];
-  todos: ProjectTodo[];
+  columns: KanbanColumn[];
 } | null> {
   const supabase = createSupabaseAdmin();
   const limit = 20;
@@ -220,13 +213,29 @@ async function getProjectData(
     };
   });
 
-  const { data: todoRows } = await supabase
-    .from("project_todos")
-    .select("id, text, completed, position")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabaseAny = supabase as any;
+
+  const { data: columnRows } = await supabaseAny
+    .from("project_board_columns")
+    .select("id, name, position")
     .eq("project_id", projectId)
     .order("position", { ascending: true });
 
-  const todos = (todoRows ?? []) as ProjectTodo[];
+  const { data: cardRows } = await supabaseAny
+    .from("project_board_cards")
+    .select("id, column_id, title, description, position")
+    .eq("project_id", projectId)
+    .order("position", { ascending: true });
+
+  const columns: KanbanColumn[] = (columnRows ?? []).map(
+    (col: { id: string; name: string; position: number }) => ({
+      ...col,
+      cards: (cardRows ?? []).filter(
+        (card: { column_id: string }) => card.column_id === col.id
+      ),
+    })
+  );
 
   return {
     user,
@@ -240,7 +249,7 @@ async function getProjectData(
     feed,
     nextCursor,
     comments,
-    todos,
+    columns,
   };
 }
 
@@ -294,7 +303,7 @@ export default async function ProjectPage({
 
   if (!data) notFound();
 
-  const { user, project, feed, nextCursor, comments, todos } = data;
+  const { user, project, feed, nextCursor, comments, columns } = data;
   const isOwner = sessionUser?.userId === user.id;
   const sessionUserId = sessionUser?.userId ?? null;
   const initialTab = tab === "discussion" ? "discussion" : "activity";
@@ -485,10 +494,10 @@ export default async function ProjectPage({
         )}
       </header>
 
-      {(isOwner || todos.length > 0) && (
-        <ProjectTodoList
+      {(isOwner || columns.some((c) => c.cards.length > 0)) && (
+        <ProjectKanban
           projectId={project.id}
-          initialTodos={todos}
+          initialColumns={columns}
           isOwner={isOwner}
         />
       )}
