@@ -152,27 +152,23 @@ function CardGhost({ card }: { card: KanbanCard }) {
 function EditCardForm({
   card,
   onSave,
-  onCancel,
   onChecklistChange,
 }: {
   card: KanbanCard;
   onSave: (title: string, description: string) => Promise<void>;
-  onCancel: () => void;
   onChecklistChange: (cardId: string, items: ChecklistItem[]) => void;
 }) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description ?? "");
-  const [saving, setSaving] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(card.checklist);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState("");
   const [newItemText, setNewItemText] = useState("");
 
-  async function handleSave() {
-    if (!title.trim() || saving) return;
-    setSaving(true);
-    await onSave(title.trim(), description.trim());
-    setSaving(false);
+  async function handleAutoSave(currentTitle: string, currentDescription: string) {
+    if (!currentTitle.trim()) return;
+    if (currentTitle.trim() === card.title && currentDescription.trim() === (card.description ?? "")) return;
+    await onSave(currentTitle.trim(), currentDescription.trim());
   }
 
   async function handleToggleItem(item: ChecklistItem) {
@@ -235,6 +231,7 @@ function EditCardForm({
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
+        onBlur={() => handleAutoSave(title, description)}
         maxLength={200}
         placeholder="Card title"
         className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400"
@@ -242,6 +239,7 @@ function EditCardForm({
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
+        onBlur={() => handleAutoSave(title, description)}
         maxLength={2000}
         rows={3}
         placeholder="Description (optional)"
@@ -314,21 +312,6 @@ function EditCardForm({
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleSave}
-          disabled={!title.trim() || saving}
-          className="rounded-lg bg-[#b5522a] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#9e4524] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Save
-        </button>
-        <button
-          onClick={onCancel}
-          className="rounded-lg border border-[#e8ddd0] px-3 py-1.5 text-xs font-medium text-[#78716c] hover:bg-[#f5f0e8] transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
     </div>
   );
 }
@@ -339,6 +322,7 @@ function KanbanColumnItem({
   column,
   isOwner,
   onDeleteColumn,
+  onClearColumn,
   onRenameColumn,
   onAddCard,
   onDeleteCard,
@@ -347,6 +331,7 @@ function KanbanColumnItem({
   column: KanbanColumn;
   isOwner: boolean;
   onDeleteColumn: (id: string) => void;
+  onClearColumn: (id: string) => void;
   onRenameColumn: (id: string, name: string) => void;
   onAddCard: (columnId: string, title: string, description: string) => Promise<void>;
   onDeleteCard: (cardId: string) => void;
@@ -356,8 +341,20 @@ function KanbanColumnItem({
   const [nameValue, setNameValue] = useState(column.name);
   const [addingCard, setAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
-  const [newCardDesc, setNewCardDesc] = useState("");
-  const [addingSubmit, setAddingSubmit] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const committingRef = useRef(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [menuOpen]);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: column.id,
@@ -380,15 +377,13 @@ function KanbanColumnItem({
     }
   }
 
-  async function handleAddCard(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newCardTitle.trim() || addingSubmit) return;
-    setAddingSubmit(true);
-    await onAddCard(column.id, newCardTitle.trim(), newCardDesc.trim());
-    setNewCardTitle("");
-    setNewCardDesc("");
+  async function handleCommitCard() {
+    if (committingRef.current) return;
+    committingRef.current = true;
+    const trimmed = newCardTitle.trim();
     setAddingCard(false);
-    setAddingSubmit(false);
+    setNewCardTitle("");
+    if (trimmed) await onAddCard(column.id, trimmed, "");
   }
 
   return (
@@ -439,19 +434,43 @@ function KanbanColumnItem({
         )}
 
         {isOwner && (
-          <button
-            onClick={() => onDeleteColumn(column.id)}
-            className="shrink-0 text-[#d6cfc6] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-base leading-none"
-            aria-label="Delete column"
-          >
-            ×
-          </button>
+          <div ref={menuRef} className="relative shrink-0 opacity-0 group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              className="rounded p-1 text-[#a8a29e] hover:bg-[#ede8df] hover:text-[#78716c] focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30"
+              aria-label="Column options"
+            >
+              <span className="inline-flex h-4 w-4 items-center justify-center text-base leading-none">⋯</span>
+            </button>
+            <div
+              className={[
+                "absolute right-0 top-full z-50 mt-1 w-48 origin-top-right rounded-lg border border-[#e8ddd0] bg-white py-1 shadow-lg transition-[opacity,transform] duration-100",
+                menuOpen ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0",
+              ].join(" ")}
+            >
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); onClearColumn(column.id); }}
+                className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                Delete all cards
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); onDeleteColumn(column.id); }}
+                className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                Delete list
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Cards */}
       <SortableContext items={column.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 min-h-[3rem]">
           {column.cards.map((card) => (
             <KanbanCardItem
               key={card.id}
@@ -467,44 +486,23 @@ function KanbanColumnItem({
       {/* Add card */}
       {isOwner && (
         addingCard ? (
-          <form onSubmit={handleAddCard} className="flex flex-col gap-2 mt-1">
-            <input
-              autoFocus
-              type="text"
-              value={newCardTitle}
-              onChange={(e) => setNewCardTitle(e.target.value)}
-              maxLength={200}
-              placeholder="Card title"
-              className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
-            />
-            <textarea
-              value={newCardDesc}
-              onChange={(e) => setNewCardDesc(e.target.value)}
-              maxLength={2000}
-              rows={2}
-              placeholder="Description (optional)"
-              className="w-full resize-none text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={!newCardTitle.trim() || addingSubmit}
-                className="rounded-lg bg-[#b5522a] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#9e4524] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                Add card
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAddingCard(false); setNewCardTitle(""); setNewCardDesc(""); }}
-                className="rounded-lg border border-[#e8ddd0] px-3 py-1.5 text-xs font-medium text-[#78716c] hover:bg-[#ece7df] transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          <input
+            autoFocus
+            type="text"
+            value={newCardTitle}
+            onChange={(e) => setNewCardTitle(e.target.value)}
+            onBlur={handleCommitCard}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+              if (e.key === "Escape") { committingRef.current = true; setAddingCard(false); setNewCardTitle(""); }
+            }}
+            maxLength={200}
+            placeholder="Card title"
+            className="mt-1 w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
+          />
         ) : (
           <button
-            onClick={() => setAddingCard(true)}
+            onClick={() => { committingRef.current = false; setAddingCard(true); }}
             className="mt-1 w-full rounded-lg border border-dashed border-[#d6cfc6] px-3 py-1.5 text-xs text-[#a8a29e] hover:border-[#b5522a] hover:text-[#b5522a] transition-colors text-left"
           >
             + Add card
@@ -612,6 +610,16 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
     if (!res.ok) setColumns(prev);
   }
 
+  async function handleClearColumn(columnId: string) {
+    const prev = columns;
+    setColumns((cols) =>
+      cols.map((c) => c.id === columnId ? { ...c, cards: [] } : c)
+    );
+
+    const res = await fetch(`/api/board/columns/${columnId}/cards`, { method: "DELETE" });
+    if (!res.ok) setColumns(prev);
+  }
+
   async function handleRenameColumn(columnId: string, name: string) {
     const prev = columns;
     setColumns((cols) => cols.map((c) => c.id === columnId ? { ...c, name } : c));
@@ -627,6 +635,22 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
   // ---------- Card actions ----------
 
   async function handleAddCard(columnId: string, title: string, description: string) {
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: KanbanCard = {
+      id: tempId,
+      column_id: columnId,
+      title,
+      description: description || null,
+      position: columns.find((c) => c.id === columnId)?.cards.length ?? 0,
+      checklist: [],
+    };
+
+    setColumns((cols) =>
+      cols.map((c) =>
+        c.id === columnId ? { ...c, cards: [...c.cards, optimistic] } : c
+      )
+    );
+
     const res = await fetch(`/api/projects/${projectId}/board/cards`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -637,7 +661,15 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
       const { card } = await res.json();
       setColumns((cols) =>
         cols.map((c) =>
-          c.id === columnId ? { ...c, cards: [...c.cards, { ...card, checklist: [] }] } : c
+          c.id === columnId
+            ? { ...c, cards: c.cards.map((cd) => cd.id === tempId ? { ...card, checklist: [] } : cd) }
+            : c
+        )
+      );
+    } else {
+      setColumns((cols) =>
+        cols.map((c) =>
+          c.id === columnId ? { ...c, cards: c.cards.filter((cd) => cd.id !== tempId) } : c
         )
       );
     }
@@ -772,11 +804,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
   // ---------- Render ----------
 
   return (
-    <div className="mt-6 mb-0 pb-8 border-b border-[#e8ddd0]">
-      <h2 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#2a1f14] mb-4">
-        Board
-      </h2>
-
+    <div className="mt-6 mb-0">
       {isOwner && columns.length === 0 ? (
         <div className="rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-6 text-center">
           <p className="text-sm text-[#78716c] mb-3">No columns yet. Set up default columns to get started.</p>
@@ -799,6 +827,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
                     column={column}
                     isOwner={isOwner}
                     onDeleteColumn={handleDeleteColumn}
+                    onClearColumn={handleClearColumn}
                     onRenameColumn={handleRenameColumn}
                     onAddCard={handleAddCard}
                     onDeleteCard={handleDeleteCard}
@@ -875,8 +904,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
             >
               <EditCardForm
                 card={editingCard}
-                onSave={async (t, d) => { await handleSaveCard(editingCard, t, d); setEditingCardId(null); }}
-                onCancel={() => setEditingCardId(null)}
+                onSave={async (t, d) => { await handleSaveCard(editingCard, t, d); }}
                 onChecklistChange={handleChecklistChange}
               />
             </div>
