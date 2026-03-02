@@ -259,18 +259,15 @@ export function ProjectCard({
   }
 
   return (
-    <div className="card rounded-xl p-5">
+    <div className="card relative rounded-xl p-5">
+      {projectHref && (
+        <Link href={projectHref} className="absolute inset-0 z-0 rounded-xl" aria-label={project.title} tabIndex={-1} />
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-[#2a1f14]">
-              {projectHref ? (
-                <Link href={projectHref} className="hover:text-[#b5522a]">
-                  {project.title}
-                </Link>
-              ) : (
-                project.title
-              )}
+              {project.title}
             </h3>
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
               Level {project.level}
@@ -291,14 +288,14 @@ export function ProjectCard({
               href={project.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm text-[#b5522a] hover:underline"
+              className="relative z-10 mt-2 inline-block text-sm text-[#b5522a] hover:underline"
             >
               {project.url}
             </a>
           )}
         </div>
         {editable && (
-          <div className="relative shrink-0" ref={menuRef}>
+          <div className="relative z-20 shrink-0" ref={menuRef}>
             <button
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
@@ -361,7 +358,7 @@ export function ProjectCard({
 
       {/* Connectors (view mode) */}
       {project.project_repos.length > 0 && (
-        <div className="mt-3">
+        <div className="relative z-10 mt-3">
           <p className="mb-1.5 text-xs font-medium text-[#a8a29e] uppercase tracking-wide">
             Connectors
           </p>

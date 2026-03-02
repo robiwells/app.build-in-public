@@ -163,22 +163,16 @@ export default async function ProjectsPage({ searchParams }: Props) {
             return (
               <div
                 key={project.id}
-                className="card flex flex-col rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]"
+                className="card relative flex flex-col rounded-xl p-4 transition-shadow hover:shadow-[0_4px_12px_rgba(120,80,40,0.14)]"
               >
+                {projectHref && (
+                  <Link href={projectHref} className="absolute inset-0 z-0 rounded-xl" aria-label={project.title} tabIndex={-1} />
+                )}
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    {projectHref ? (
-                      <Link
-                        href={projectHref}
-                        className="font-semibold text-[#2a1f14] hover:text-[#b5522a]"
-                      >
-                        {project.title}
-                      </Link>
-                    ) : (
-                      <span className="font-semibold text-[#2a1f14]">
-                        {project.title}
-                      </span>
-                    )}
+                    <span className="font-semibold text-[#2a1f14]">
+                      {project.title}
+                    </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
@@ -198,7 +192,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
                   </p>
                 )}
 
-                <div className="mt-auto space-y-1 pt-3">
+                <div className="relative z-10 mt-auto space-y-1 pt-3">
                   <div className="flex items-center justify-between gap-2">
                     {username && (
                       <Link
