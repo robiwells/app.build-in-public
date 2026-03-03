@@ -16,7 +16,9 @@ export type PendingConnectorSelection = {
   medium?: { external_id: string };
 };
 
-type Step = "pick-service" | "pick-github-repos" | "confirm-medium";
+type NotionPage = { id: string; title: string; icon: string | null; url: string };
+
+type Step = "pick-service" | "pick-github-repos" | "confirm-medium" | "pick-notion-page";
 
 export function ConnectorModal({
   projectId,
@@ -49,6 +51,13 @@ export function ConnectorModal({
   // Medium state
   const [mediumSaving, setMediumSaving] = useState(false);
   const [mediumError, setMediumError] = useState("");
+
+  // Notion state
+  const [notionPages, setNotionPages] = useState<NotionPage[]>([]);
+  const [notionLoading, setNotionLoading] = useState(false);
+  const [notionSelectedPage, setNotionSelectedPage] = useState<NotionPage | null>(null);
+  const [notionSaving, setNotionSaving] = useState(false);
+  const [notionError, setNotionError] = useState("");
 
   useEffect(() => {
     fetch("/api/connectors")
@@ -94,6 +103,17 @@ export function ConnectorModal({
     } else if (connector.type === "medium") {
       setStep("confirm-medium");
       setMediumError("");
+    } else if (connector.type === "notion") {
+      setStep("pick-notion-page");
+      setNotionLoading(true);
+      setNotionPages([]);
+      setNotionSelectedPage(null);
+      setNotionError("");
+      fetch("/api/connectors/notion/pages")
+        .then((r) => (r.ok ? r.json() : { pages: [] }))
+        .then((data: { pages?: NotionPage[] }) => setNotionPages(data.pages ?? []))
+        .catch(() => setNotionPages([]))
+        .finally(() => setNotionLoading(false));
     }
   }
 
@@ -184,6 +204,35 @@ export function ConnectorModal({
     }
   }
 
+  async function handleAddNotionPage() {
+    if (!notionSelectedPage || !projectId) return;
+    setNotionSaving(true);
+    setNotionError("");
+    try {
+      const res = await fetch(`/api/projects/${projectId}/sources`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connector_type: "notion",
+          external_id: notionSelectedPage.id,
+          display_name: notionSelectedPage.title,
+          url: notionSelectedPage.url,
+        }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) {
+        setNotionError(data.error ?? "Failed to add Notion page");
+        return;
+      }
+      onAdded();
+      onClose();
+    } catch {
+      setNotionError("Request failed");
+    } finally {
+      setNotionSaving(false);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -197,6 +246,7 @@ export function ConnectorModal({
             {step === "pick-service" && "Add connector"}
             {step === "pick-github-repos" && "Add GitHub repo"}
             {step === "confirm-medium" && "Add Medium feed"}
+            {step === "pick-notion-page" && "Add Notion page"}
           </h2>
           <button
             type="button"
@@ -331,6 +381,57 @@ export function ConnectorModal({
               </div>
             </>
           )}
+
+          {step === "pick-notion-page" && (
+            <>
+              {notionLoading ? (
+                <p className="text-sm text-[#78716c]">Loading pages…</p>
+              ) : notionPages.length === 0 ? (
+                <p className="text-sm text-[#78716c]">
+                  No pages found in your Notion workspace.
+                </p>
+              ) : (
+                <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-[#e8ddd0] p-2">
+                  {notionPages.map((page) => (
+                    <button
+                      key={page.id}
+                      type="button"
+                      onClick={() => setNotionSelectedPage(page)}
+                      className={[
+                        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        notionSelectedPage?.id === page.id
+                          ? "bg-[#f5f0e8] text-[#2a1f14]"
+                          : "text-[#78716c] hover:bg-[#faf7f2]",
+                      ].join(" ")}
+                    >
+                      <span className="shrink-0">{page.icon ?? "📄"}</span>
+                      <span className="truncate">{page.title || "Untitled"}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {notionError && (
+                <p className="mt-2 text-xs text-red-600">{notionError}</p>
+              )}
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddNotionPage}
+                  disabled={notionSaving || !notionSelectedPage || !projectId}
+                  className="rounded-full bg-[#b5522a] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#9a4522] disabled:opacity-50"
+                >
+                  {notionSaving ? "Adding…" : "Add page"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep("pick-service")}
+                  className="rounded-full px-4 py-1.5 text-sm text-[#78716c] hover:text-[#2a1f14]"
+                >
+                  Back
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -349,6 +450,13 @@ function ConnectorIcon({ type }: { type: string }) {
     return (
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-[10px] font-bold text-white">
         M
+      </span>
+    );
+  }
+  if (type === "notion") {
+    return (
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2a1f14] text-[10px] font-bold text-white">
+        N
       </span>
     );
   }

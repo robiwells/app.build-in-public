@@ -8,7 +8,9 @@ import { CommentForm } from "@/components/CommentForm";
 import { DeleteCommentButton } from "@/components/DeleteCommentButton";
 import { ProjectTabs } from "@/components/ProjectTabs";
 import { ProjectKanban, type KanbanColumn } from "@/components/ProjectKanban";
+import { NotionPageView } from "@/components/NotionPageView";
 import { levelProgressPct, xpInCurrentLevel, xpToNextLevel } from "@/lib/xp";
+import { getNotionClient, fetchPageMeta, fetchPageBlocks, type NotionBlock, type NotionPageMeta } from "@/lib/notion";
 
 export const revalidate = 30;
 
@@ -57,6 +59,8 @@ type FeedItem = {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type NotionPageData = { meta: NotionPageMeta; blocks: NotionBlock[] };
+
 async function getProjectData(
   username: string,
   slugOrId: string,
@@ -68,6 +72,7 @@ async function getProjectData(
   nextCursor: string | null;
   comments: ProjectComment[];
   columns: KanbanColumn[];
+  notionPages: NotionPageData[];
 } | null> {
   const supabase = createSupabaseAdmin();
   const limit = 20;
@@ -248,6 +253,35 @@ async function getProjectData(
     })
   );
 
+  // Fetch linked Notion pages (server-side, token never sent to client)
+  const { data: notionSources } = await supabaseAny
+    .from("project_connector_sources")
+    .select("id, external_id, display_name, url, user_connectors(access_token)")
+    .eq("project_id", projectId)
+    .eq("connector_type", "notion")
+    .eq("active", true);
+
+  const notionPages: NotionPageData[] = (
+    await Promise.all(
+      ((notionSources ?? []) as Array<Record<string, unknown>>).map(async (source) => {
+        const connector = source.user_connectors as Record<string, unknown> | null;
+        const token = connector?.access_token as string | null | undefined;
+        if (!token) return null;
+        try {
+          const client = getNotionClient(token);
+          const [meta, blocks] = await Promise.all([
+            fetchPageMeta(client, source.external_id as string),
+            fetchPageBlocks(client, source.external_id as string),
+          ]);
+          return { meta, blocks };
+        } catch (err) {
+          console.error("[project page] Notion fetch failed for", source.external_id, err);
+          return null;
+        }
+      })
+    )
+  ).filter((p): p is NotionPageData => p !== null);
+
   return {
     user,
     project: {
@@ -261,6 +295,7 @@ async function getProjectData(
     nextCursor,
     comments,
     columns,
+    notionPages,
   };
 }
 
@@ -314,7 +349,7 @@ export default async function ProjectPage({
 
   if (!data) notFound();
 
-  const { user, project, feed, nextCursor, comments, columns } = data;
+  const { user, project, feed, nextCursor, comments, columns, notionPages } = data;
   const isOwner = sessionUser?.userId === user.id;
   const sessionUserId = sessionUser?.userId ?? null;
   const initialTab = tab === "discussion" ? "discussion" : "activity";
@@ -512,6 +547,10 @@ export default async function ProjectPage({
           isOwner={isOwner}
         />
       )}
+
+      {notionPages.map((page) => (
+        <NotionPageView key={page.meta.id} meta={page.meta} blocks={page.blocks} />
+      ))}
 
       <ProjectTabs
         commentsCount={project.comments_count}
