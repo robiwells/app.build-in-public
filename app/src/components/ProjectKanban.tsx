@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import React from "react";
 import confetti from "canvas-confetti";
 import {
@@ -572,6 +573,7 @@ function ColumnGhost({ column }: { column: KanbanColumn }) {
 // ---------- Main board ----------
 
 export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
+  const router = useRouter();
   const [columns, setColumns] = useState<KanbanColumn[]>(
     initialColumns.map((col) => ({
       ...col,
@@ -890,7 +892,8 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
 
         if (columns[targetColIdx].name === "Done") {
           setCelebratingCardId(cardId);
-          fetch(`/api/board/cards/${cardId}/done`, { method: "POST" });
+          fetch(`/api/board/cards/${cardId}/done`, { method: "POST" })
+            .then(() => router.refresh());
         }
       } else {
         // Within-column sort — handleDragOver skipped this, do it now
