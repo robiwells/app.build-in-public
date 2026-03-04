@@ -10,7 +10,7 @@ import { ProjectTabs } from "@/components/ProjectTabs";
 import { ProjectKanban, type KanbanColumn } from "@/components/ProjectKanban";
 import { levelProgressPct, xpInCurrentLevel, xpToNextLevel } from "@/lib/xp";
 
-export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 
 type ProjectRepo = {
   id: string;

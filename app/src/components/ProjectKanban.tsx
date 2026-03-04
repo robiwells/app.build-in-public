@@ -681,6 +681,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
   const handleCelebrationEnd = useCallback(() => setCelebratingCardId(null), []);
   const dragSourceColIdRef = useRef<string | null>(null);
   const overColRef = useRef<string | null>(null);
+  const columnsSnapshotRef = useRef<KanbanColumn[]>([]);
 
   // Add column inline state
   const [addingColumn, setAddingColumn] = useState(false);
@@ -873,6 +874,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
+    columnsSnapshotRef.current = JSON.parse(JSON.stringify(columns));
     if (data?.type === "card") {
       setActiveCard(data.card);
       dragSourceColIdRef.current = data.card.column_id;
@@ -919,7 +921,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
     });
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     setActiveCard(null);
     setActiveColumn(null);
     overColRef.current = null;
@@ -938,11 +940,12 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
       const reordered = arrayMove(columns, oldIndex, newIndex).map((c, i) => ({ ...c, position: i }));
       setColumns(reordered);
 
-      fetch(`/api/board/columns/${active.id}`, {
+      const res = await fetch(`/api/board/columns/${active.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ position: newIndex }),
       });
+      if (!res.ok) setColumns(columnsSnapshotRef.current);
       return;
     }
 
@@ -977,16 +980,19 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
           setColumns((cols) => cols.map((c, i) => i === targetColIdx ? { ...c, cards: reordered } : c));
         }
 
-        fetch(`/api/board/cards/${cardId}`, {
+        const res = await fetch(`/api/board/cards/${cardId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ column_id: targetColumnId, position: finalIdx }),
         });
-
-        if (columns[targetColIdx].name === "Done") {
-          setCelebratingCardId(cardId);
-          fetch(`/api/board/cards/${cardId}/done`, { method: "POST" })
-            .then(() => router.refresh());
+        if (!res.ok) {
+          setColumns(columnsSnapshotRef.current);
+        } else {
+          router.refresh();
+          if (columns[targetColIdx].name === "Done") {
+            setCelebratingCardId(cardId);
+            fetch(`/api/board/cards/${cardId}/done`, { method: "POST" });
+          }
         }
       } else {
         // Within-column sort — handleDragOver skipped this, do it now
@@ -1000,11 +1006,12 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
         const moved = arrayMove(cards, oldIdx, newIdx).map((c, i) => ({ ...c, position: i }));
         setColumns((cols) => cols.map((c, i) => i === colIdx ? { ...c, cards: moved } : c));
 
-        fetch(`/api/board/cards/${cardId}`, {
+        const res = await fetch(`/api/board/cards/${cardId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ column_id: targetColumnId, position: newIdx }),
         });
+        if (!res.ok) setColumns(columnsSnapshotRef.current);
       }
     }
   }
