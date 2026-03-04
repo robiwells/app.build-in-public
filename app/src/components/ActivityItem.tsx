@@ -93,6 +93,7 @@ export function ActivityItem({
   const isManual = activity.type === "manual";
   const isMilestone = activity.type === "milestone";
   const isMedium = activity.type === "auto_medium";
+  const isKanbanDone = activity.type === "kanban_done";
   const dateAsHeader = !showUser && !showProject;
   const count = activity.commit_count ?? 0;
   const repoName = repo?.repo_full_name ?? "repo";
@@ -236,6 +237,20 @@ export function ActivityItem({
                   </a>
                 </div>
               )}
+            </>
+          ) : isKanbanDone ? (
+            <>
+              <div className="mt-1 flex items-center gap-1.5">
+                <span className="text-base">✅</span>
+                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#4d6040" }}>Completed</span>
+              </div>
+              {activity.content_text && (
+                <p className="mt-1 text-sm text-[#2a1f14]">{activity.content_text}</p>
+              )}
+              <p className="mt-1 text-sm text-[#a8a29e]">
+                {!dateAsHeader && formatDate(activity.date_utc)}
+                {activity.last_commit_at && <>{!dateAsHeader && " · "}{formatRelative(activity.last_commit_at)}</>}
+              </p>
             </>
           ) : isManual ? (
             <>

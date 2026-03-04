@@ -65,6 +65,18 @@ body {
 .feed-item:nth-child(7) { animation-delay: 480ms; }
 .feed-item:nth-child(8) { animation-delay: 560ms; }
 
+@keyframes kanban-done {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(77,96,64,0.5); }
+  20%  { transform: scale(1.04); box-shadow: 0 0 0 8px rgba(77,96,64,0.2); }
+  40%  { transform: scale(0.97); }
+  60%  { transform: scale(1.02); box-shadow: 0 0 0 4px rgba(77,96,64,0.08); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(77,96,64,0); }
+}
+
+.animate-kanban-done {
+  animation: kanban-done 0.6s ease-out forwards;
+}
+
 /* ── Notion page view (react-notion-render with useStyles=false) ───────────── */
 
 .notion-content {

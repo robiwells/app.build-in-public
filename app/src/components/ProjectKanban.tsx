@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import React from "react";
+import confetti from "canvas-confetti";
 import {
   DndContext,
   DragOverlay,
@@ -8,6 +10,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import {
@@ -58,12 +61,39 @@ function KanbanCardItem({
   isOwner,
   onDelete,
   onEdit,
+  isCelebrating,
+  onCelebrationEnd,
 }: {
   card: KanbanCard;
   isOwner: boolean;
   onDelete: (id: string) => void;
   onEdit: (card: KanbanCard) => void;
+  isCelebrating: boolean;
+  onCelebrationEnd: () => void;
 }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isCelebrating || !cardRef.current) return;
+    cardRef.current.classList.add("animate-kanban-done");
+    const rect = cardRef.current.getBoundingClientRect();
+    confetti({
+      particleCount: 60,
+      spread: 55,
+      origin: {
+        x: (rect.left + rect.width / 2) / window.innerWidth,
+        y: (rect.top + rect.height / 2) / window.innerHeight,
+      },
+      colors: ["#f59e0b", "#10b981", "#3b82f6"],
+      scalar: 0.8,
+    });
+    const t = setTimeout(() => {
+      cardRef.current?.classList.remove("animate-kanban-done");
+      onCelebrationEnd();
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [isCelebrating, onCelebrationEnd]);
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
     data: { type: "card", card },
@@ -77,32 +107,16 @@ function KanbanCardItem({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(el) => { setNodeRef(el); (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = el; }}
       style={style}
-      className="group relative rounded-lg bg-white border border-[#e8ddd0] p-3 shadow-sm"
+      className={`group relative rounded-lg bg-white border border-[#e8ddd0] p-3 shadow-sm ${isOwner ? "cursor-grab active:cursor-grabbing" : ""}`}
+      {...(isOwner ? { ...attributes, ...listeners } : {})}
     >
       <div className="flex items-start gap-2">
-        {isOwner && (
-          <button
-            {...attributes}
-            {...listeners}
-            className="mt-0.5 shrink-0 cursor-grab text-[#d6cfc6] hover:text-[#a8a29e] active:cursor-grabbing"
-            aria-label="Drag card"
-          >
-            <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
-              <circle cx="4" cy="3" r="1.5" />
-              <circle cx="8" cy="3" r="1.5" />
-              <circle cx="4" cy="8" r="1.5" />
-              <circle cx="8" cy="8" r="1.5" />
-              <circle cx="4" cy="13" r="1.5" />
-              <circle cx="8" cy="13" r="1.5" />
-            </svg>
-          </button>
-        )}
         <div className="min-w-0 flex-1">
           <button
             onClick={() => isOwner && onEdit(card)}
-            className={`w-full text-left text-sm font-medium text-[#2a1f14] ${isOwner ? "hover:text-[#b5522a]" : ""}`}
+            className={`w-full text-left text-sm font-medium text-[#2a1f14] ${isOwner ? "cursor-pointer hover:text-[#b5522a]" : ""}`}
             disabled={!isOwner}
           >
             {card.title}
@@ -123,7 +137,7 @@ function KanbanCardItem({
         {isOwner && (
           <button
             onClick={() => onDelete(card.id)}
-            className="shrink-0 text-[#d6cfc6] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-base leading-none"
+            className="shrink-0 cursor-pointer text-[#d6cfc6] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-base leading-none"
             aria-label="Delete card"
           >
             ×
@@ -327,6 +341,8 @@ function KanbanColumnItem({
   onAddCard,
   onDeleteCard,
   onEditCard,
+  celebratingCardId,
+  onCelebrationEnd,
 }: {
   column: KanbanColumn;
   isOwner: boolean;
@@ -336,7 +352,10 @@ function KanbanColumnItem({
   onAddCard: (columnId: string, title: string, description: string) => Promise<void>;
   onDeleteCard: (cardId: string) => void;
   onEditCard: (card: KanbanCard) => void;
+  celebratingCardId: string | null;
+  onCelebrationEnd: () => void;
 }) {
+  const isDone = column.name === "Done";
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(column.name);
   const [addingCard, setAddingCard] = useState(false);
@@ -401,7 +420,7 @@ function KanbanColumnItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="w-64 shrink-0 rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] p-3 flex flex-col gap-2 group"
+      className={`w-64 shrink-0 rounded-xl p-3 flex flex-col gap-2 group ${isDone ? "bg-[#eef0e8] border border-[#cdd4be]" : "bg-[#f5f0e8] border border-[#e8ddd0]"}`}
     >
       {/* Column header */}
       <div className="flex items-center gap-2">
@@ -423,7 +442,7 @@ function KanbanColumnItem({
           </button>
         )}
 
-        {editingName && isOwner ? (
+        {editingName && isOwner && !isDone ? (
           <input
             autoFocus
             type="text"
@@ -434,6 +453,14 @@ function KanbanColumnItem({
             maxLength={50}
             className="flex-1 rounded px-1 py-0.5 text-sm font-medium text-[#2a1f14] border border-amber-400 focus:outline-none bg-white"
           />
+        ) : isDone ? (
+          <span className="flex flex-1 items-center gap-1.5 min-w-0">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" className="shrink-0" style={{ color: "#4d6040" }}>
+              <circle cx="6.5" cy="6.5" r="6" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.15"/>
+              <path d="M3.5 6.5L5.5 8.5L9.5 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-medium text-sm truncate" style={{ color: "#3d4e32" }}>{column.name}</span>
+          </span>
         ) : (
           <button
             onClick={() => isOwner && setEditingName(true)}
@@ -470,13 +497,15 @@ function KanbanColumnItem({
               >
                 Delete all cards
               </button>
-              <button
-                type="button"
-                onClick={() => { setMenuOpen(false); onDeleteColumn(column.id); }}
-                className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-              >
-                Delete list
-              </button>
+              {!isDone && (
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); onDeleteColumn(column.id); }}
+                  className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                >
+                  Delete list
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -492,6 +521,8 @@ function KanbanColumnItem({
               isOwner={isOwner}
               onDelete={onDeleteCard}
               onEdit={(c) => onEditCard(c)}
+              isCelebrating={celebratingCardId === card.id}
+              onCelebrationEnd={onCelebrationEnd}
             />
           ))}
         </div>
@@ -551,6 +582,10 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
   const [activeColumn, setActiveColumn] = useState<KanbanColumn | null>(null);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
+  const [celebratingCardId, setCelebratingCardId] = useState<string | null>(null);
+  const handleCelebrationEnd = useCallback(() => setCelebratingCardId(null), []);
+  const dragSourceColIdRef = useRef<string | null>(null);
+  const overColRef = useRef<string | null>(null);
 
   // Add column inline state
   const [addingColumn, setAddingColumn] = useState(false);
@@ -743,16 +778,56 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
-    if (data?.type === "card") setActiveCard(data.card);
+    if (data?.type === "card") {
+      setActiveCard(data.card);
+      dragSourceColIdRef.current = data.card.column_id;
+      overColRef.current = data.card.column_id;
+    }
     if (data?.type === "column") {
       const col = columns.find((c) => c.id === event.active.id);
       if (col) setActiveColumn(col);
+      dragSourceColIdRef.current = null;
     }
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over) return;
+    const activeData = active.data.current;
+    if (activeData?.type !== "card") return;
+
+    const overData = over.data.current;
+    const targetColumnId = overData?.type === "card"
+      ? (overData.card.column_id as string)
+      : (over.id as string);
+
+    // Only update state when crossing a column boundary — prevents rapid setState
+    // calls from mouse-move events crashing React's update depth limit
+    if (targetColumnId === overColRef.current) return;
+    overColRef.current = targetColumnId;
+
+    setColumns((cols) => {
+      const sourceColIdx = cols.findIndex((c) => c.cards.some((cd) => cd.id === active.id));
+      const targetColIdx = cols.findIndex((c) => c.id === targetColumnId);
+      if (sourceColIdx === -1 || targetColIdx === -1 || sourceColIdx === targetColIdx) return cols;
+
+      const activeCard = cols[sourceColIdx].cards.find((c) => c.id === active.id)!;
+      const updatedCard = { ...activeCard, column_id: targetColumnId };
+      const newSourceCards = cols[sourceColIdx].cards.filter((c) => c.id !== active.id);
+      const newTargetCards = [...cols[targetColIdx].cards, updatedCard];
+
+      return cols.map((c, i) => {
+        if (i === sourceColIdx) return { ...c, cards: newSourceCards };
+        if (i === targetColIdx) return { ...c, cards: newTargetCards };
+        return c;
+      });
+    });
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveCard(null);
     setActiveColumn(null);
+    overColRef.current = null;
 
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -777,55 +852,64 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
     }
 
     if (activeData?.type === "card") {
-      const card = activeData.card as KanbanCard;
+      const cardId = active.id as string;
+      const originalColId = dragSourceColIdRef.current;
       const overData = over.data.current;
 
-      // Determine target column
-      let targetColumnId = over.id as string;
-      if (overData?.type === "card") {
-        targetColumnId = overData.card.column_id;
-      }
+      const targetColumnId = overData?.type === "card"
+        ? (overData.card.column_id as string)
+        : (over.id as string);
 
-      const sourceColIdx = columns.findIndex((c) => c.id === card.column_id);
       const targetColIdx = columns.findIndex((c) => c.id === targetColumnId);
-      if (sourceColIdx === -1 || targetColIdx === -1) return;
+      if (targetColIdx === -1) return;
 
-      const sourceCards = [...columns[sourceColIdx].cards];
-      const targetCards = sourceColIdx === targetColIdx
-        ? sourceCards
-        : [...columns[targetColIdx].cards];
+      const isCrossColumn = originalColId !== null && originalColId !== targetColumnId;
 
-      const oldCardIdx = sourceCards.findIndex((c) => c.id === card.id);
+      if (isCrossColumn) {
+        // dragOver appended the card to the end of the target column.
+        // Compute the correct final position from where the user actually dropped.
+        const overData = over.data.current;
+        const targetCards = columns[targetColIdx].cards;
+        const cardCurrentIdx = targetCards.findIndex((c) => c.id === cardId);
 
-      // Find position in target
-      let newCardIdx = targetCards.findIndex((c) => c.id === over.id);
-      if (newCardIdx === -1) newCardIdx = targetCards.length;
+        let finalIdx = overData?.type === "card"
+          ? targetCards.findIndex((c) => c.id === over.id)
+          : cardCurrentIdx;
+        if (finalIdx === -1) finalIdx = cardCurrentIdx;
 
-      const updatedCard = { ...card, column_id: targetColumnId };
+        if (finalIdx !== cardCurrentIdx) {
+          const reordered = arrayMove(targetCards, cardCurrentIdx, finalIdx).map((c, i) => ({ ...c, position: i }));
+          setColumns((cols) => cols.map((c, i) => i === targetColIdx ? { ...c, cards: reordered } : c));
+        }
 
-      let newColumns: KanbanColumn[];
-      if (sourceColIdx === targetColIdx) {
-        const moved = arrayMove(sourceCards, oldCardIdx, newCardIdx).map((c, i) => ({ ...c, position: i }));
-        newColumns = columns.map((c, i) => i === sourceColIdx ? { ...c, cards: moved } : c);
+        fetch(`/api/board/cards/${cardId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ column_id: targetColumnId, position: finalIdx }),
+        });
+
+        if (columns[targetColIdx].name === "Done") {
+          setCelebratingCardId(cardId);
+          fetch(`/api/board/cards/${cardId}/done`, { method: "POST" });
+        }
       } else {
-        sourceCards.splice(oldCardIdx, 1);
-        targetCards.splice(newCardIdx, 0, updatedCard);
-        const updatedSource = sourceCards.map((c, i) => ({ ...c, position: i }));
-        const updatedTarget = targetCards.map((c, i) => ({ ...c, position: i }));
-        newColumns = columns.map((c, i) => {
-          if (i === sourceColIdx) return { ...c, cards: updatedSource };
-          if (i === targetColIdx) return { ...c, cards: updatedTarget };
-          return c;
+        // Within-column sort — handleDragOver skipped this, do it now
+        const colIdx = targetColIdx;
+        const cards = [...columns[colIdx].cards];
+        const oldIdx = cards.findIndex((c) => c.id === cardId);
+        let newIdx = cards.findIndex((c) => c.id === over.id);
+        if (newIdx === -1) newIdx = cards.length;
+        if (oldIdx === newIdx) return;
+
+        const moved = arrayMove(cards, oldIdx, newIdx).map((c, i) => ({ ...c, position: i }));
+        setColumns((cols) => cols.map((c, i) => i === colIdx ? { ...c, cards: moved } : c));
+
+        fetch(`/api/board/cards/${cardId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ column_id: targetColumnId, position: newIdx }),
         });
       }
-
-      setColumns(newColumns);
-
-      fetch(`/api/board/cards/${card.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ column_id: targetColumnId, position: newCardIdx }),
-      });
     }
   }
 
@@ -848,7 +932,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
     }
 
     return (
-      <DndContext id="project-kanban" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext id="project-kanban" sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
         <div className={inModal ? "pb-3" : "overflow-x-auto pb-3"}>
           <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
             <div className="flex gap-3 items-start" style={{ minWidth: "max-content" }}>
@@ -863,6 +947,8 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
                   onAddCard={handleAddCard}
                   onDeleteCard={handleDeleteCard}
                   onEditCard={(card) => setEditingCardId(card.id)}
+                  celebratingCardId={celebratingCardId}
+                  onCelebrationEnd={handleCelebrationEnd}
                 />
               ))}
 
