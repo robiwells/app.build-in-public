@@ -371,6 +371,15 @@ function KanbanColumnItem({
   const newCardInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    if (!addingCard) return;
+    const el = newCardInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    // Match card min height: p-3 (12px*2) + one line (~20px) ≈ 44px
+    el.style.height = `${Math.max(el.scrollHeight, 44)}px`;
+  }, [addingCard, newCardTitle]);
+
+  useEffect(() => {
     if (!menuOpen) return;
     function handleMouseDown(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
@@ -606,9 +615,9 @@ function KanbanColumnItem({
               if (e.key === "Escape") { committingRef.current = true; setAddingCard(false); setNewCardTitle(""); }
             }}
             maxLength={200}
-            rows={2}
+            rows={1}
             placeholder="Card title"
-            className="mt-1 w-full resize-none text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white break-words"
+            className="mt-1 w-full resize-none overflow-hidden text-sm font-medium border border-[#e8ddd0] rounded-lg p-3 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white break-words"
           />
         ) : (
           <button
