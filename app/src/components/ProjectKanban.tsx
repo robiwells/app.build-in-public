@@ -366,6 +366,7 @@ function KanbanColumnItem({
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const committingRef = useRef(false);
+  const newCardInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -408,13 +409,20 @@ function KanbanColumnItem({
     }
   }
 
-  async function handleCommitCard() {
+  async function handleCommitCard(stayOpen: boolean) {
     if (committingRef.current) return;
     committingRef.current = true;
     const trimmed = newCardTitle.trim();
-    setAddingCard(false);
     setNewCardTitle("");
     if (trimmed) await onAddCard(column.id, trimmed, "");
+    if (stayOpen) {
+      committingRef.current = false;
+      setAddingCard(true);
+      requestAnimationFrame(() => newCardInputRef.current?.focus());
+    } else {
+      setAddingCard(false);
+      committingRef.current = false;
+    }
   }
 
   return (
@@ -533,13 +541,17 @@ function KanbanColumnItem({
       {isOwner && (
         addingCard ? (
           <input
+            ref={newCardInputRef}
             autoFocus
             type="text"
             value={newCardTitle}
             onChange={(e) => setNewCardTitle(e.target.value)}
-            onBlur={handleCommitCard}
+            onBlur={() => handleCommitCard(false)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (newCardTitle.trim()) handleCommitCard(true);
+              }
               if (e.key === "Escape") { committingRef.current = true; setAddingCard(false); setNewCardTitle(""); }
             }}
             maxLength={200}
