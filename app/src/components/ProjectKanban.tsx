@@ -117,7 +117,7 @@ function KanbanCardItem({
         <div className="min-w-0 flex-1">
           <button
             onClick={() => isOwner && onEdit(card)}
-            className={`w-full text-left text-sm font-medium text-[#2a1f14] ${isOwner ? "cursor-pointer hover:text-[#b5522a]" : ""}`}
+            className={`w-full text-left text-sm font-medium text-[#2a1f14] break-words ${isOwner ? "cursor-pointer hover:text-[#b5522a]" : ""}`}
             disabled={!isOwner}
           >
             {card.title}
@@ -154,7 +154,7 @@ function KanbanCardItem({
 function CardGhost({ card }: { card: KanbanCard }) {
   return (
     <div className="rounded-lg bg-white border border-[#e8ddd0] p-3 shadow-md opacity-90 w-64">
-      <p className="text-sm font-medium text-[#2a1f14]">{card.title}</p>
+      <p className="text-sm font-medium text-[#2a1f14] break-words">{card.title}</p>
       {card.description && (
         <p className="mt-1 text-xs text-[#78716c] line-clamp-2">{card.description}</p>
       )}
@@ -241,15 +241,16 @@ function EditCardForm({
 
   return (
     <div className="rounded-lg bg-white border border-amber-400 p-5 shadow-sm space-y-2">
-      <input
+      <textarea
         autoFocus
-        type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onBlur={() => handleAutoSave(title, description)}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
         maxLength={200}
+        rows={2}
         placeholder="Card title"
-        className="w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400"
+        className="w-full resize-none text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 break-words"
       />
       <textarea
         value={description}
@@ -367,7 +368,7 @@ function KanbanColumnItem({
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const committingRef = useRef(false);
-  const newCardInputRef = useRef<HTMLInputElement>(null);
+  const newCardInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -591,10 +592,9 @@ function KanbanColumnItem({
       {/* Add card */}
       {isOwner && (
         addingCard ? (
-          <input
+          <textarea
             ref={newCardInputRef}
             autoFocus
-            type="text"
             value={newCardTitle}
             onChange={(e) => setNewCardTitle(e.target.value)}
             onBlur={() => handleCommitCard(false)}
@@ -606,8 +606,9 @@ function KanbanColumnItem({
               if (e.key === "Escape") { committingRef.current = true; setAddingCard(false); setNewCardTitle(""); }
             }}
             maxLength={200}
+            rows={2}
             placeholder="Card title"
-            className="mt-1 w-full text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white"
+            className="mt-1 w-full resize-none text-sm border border-[#e8ddd0] rounded-lg px-2 py-1.5 text-[#2a1f14] placeholder:text-[#a8a29e] focus:outline-none focus:border-amber-400 bg-white break-words"
           />
         ) : (
           <button
