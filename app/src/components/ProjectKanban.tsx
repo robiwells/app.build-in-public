@@ -363,6 +363,7 @@ function KanbanColumnItem({
   const [newCardTitle, setNewCardTitle] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"clear" | "deleteColumn" | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const committingRef = useRef(false);
@@ -379,6 +380,15 @@ function KanbanColumnItem({
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!confirmAction) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setConfirmAction(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [confirmAction]);
 
   function openMenu() {
     if (triggerRef.current) {
@@ -501,7 +511,7 @@ function KanbanColumnItem({
             >
               <button
                 type="button"
-                onClick={() => { setMenuOpen(false); onClearColumn(column.id); }}
+                onClick={() => { setMenuOpen(false); setConfirmAction("clear"); }}
                 className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
               >
                 Delete all cards
@@ -509,7 +519,7 @@ function KanbanColumnItem({
               {!isDone && (
                 <button
                   type="button"
-                  onClick={() => { setMenuOpen(false); onDeleteColumn(column.id); }}
+                  onClick={() => { setMenuOpen(false); setConfirmAction("deleteColumn"); }}
                   className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                 >
                   Delete list
@@ -519,6 +529,47 @@ function KanbanColumnItem({
           </div>
         )}
       </div>
+
+      {/* Confirmation modal */}
+      {confirmAction && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setConfirmAction(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl bg-[#f5f0e8] border border-[#e8ddd0] shadow-[0_4px_14px_rgba(42,31,20,0.08)] p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-medium text-[#2a1f14]">
+              {confirmAction === "clear"
+                ? `Delete all ${column.cards.length} card${column.cards.length !== 1 ? "s" : ""} from "${column.name}"? This cannot be undone.`
+                : column.cards.length > 0
+                  ? `Delete "${column.name}" and its ${column.cards.length} card${column.cards.length !== 1 ? "s" : ""}? This cannot be undone.`
+                  : `Delete list "${column.name}"?`}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                className="rounded-lg bg-white border border-[#e8ddd0] px-3 py-1.5 text-sm font-medium text-[#78716c] hover:bg-[#ece7df] focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmAction === "clear") onClearColumn(column.id);
+                  else onDeleteColumn(column.id);
+                  setConfirmAction(null);
+                }}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cards */}
       <SortableContext items={column.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
