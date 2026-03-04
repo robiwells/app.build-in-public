@@ -228,6 +228,18 @@ function EditCardForm({
     const text = newItemText.trim();
     if (!text) return;
     setNewItemText("");
+    const optimisticId = `opt-${Date.now()}`;
+    const position = checklist.length > 0 ? Math.max(...checklist.map((i) => i.position)) + 1 : 0;
+    const optimisticItem: ChecklistItem = {
+      id: optimisticId,
+      card_id: card.id,
+      text,
+      completed: false,
+      position,
+    };
+    const nextList = [...checklist, optimisticItem];
+    setChecklist(nextList);
+    onChecklistChange(card.id, nextList);
     const res = await fetch(`/api/board/cards/${card.id}/checklist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -235,9 +247,18 @@ function EditCardForm({
     });
     if (res.ok) {
       const { item } = await res.json();
-      const updated = [...checklist, item];
-      setChecklist(updated);
-      onChecklistChange(card.id, updated);
+      setChecklist((prev) => {
+        const next = prev.map((i) => (i.id === optimisticId ? item : i));
+        setTimeout(() => onChecklistChange(card.id, next), 0);
+        return next;
+      });
+    } else {
+      setChecklist((prev) => {
+        const next = prev.filter((i) => i.id !== optimisticId);
+        setTimeout(() => onChecklistChange(card.id, next), 0);
+        return next;
+      });
+      setNewItemText(text);
     }
   }
 
