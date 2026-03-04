@@ -848,7 +848,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
     }
 
     return (
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext id="project-kanban" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className={inModal ? "pb-3" : "overflow-x-auto pb-3"}>
           <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
             <div className="flex gap-3 items-start" style={{ minWidth: "max-content" }}>

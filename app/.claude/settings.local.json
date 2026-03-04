@@ -14,7 +14,9 @@
       "Bash(cd /Users/robertwells/projects/robiwells/app.build-in-public/.worktrees/milestone-post-type/app && npm run lint 2>&1)",
       "Bash(grep:*)",
       "WebFetch(domain:developers.notion.com)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { createInstallState } from "@/lib/github-app";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { MediumConnector } from "@/components/MediumConnector";
-import { NotionConnector } from "@/components/NotionConnector";
 
 export default async function ConnectorsPage() {
   const session = await auth();
@@ -33,15 +32,6 @@ export default async function ConnectorsPage() {
     .eq("active", true)
     .order("created_at", { ascending: true });
   const initialMediumConnectors = mediumConnectors ?? [];
-
-  const { data: notionConnectors } = await supabase
-    .from("user_connectors")
-    .select("id, external_id, display_name")
-    .eq("user_id", user.userId)
-    .eq("type", "notion")
-    .eq("active", true)
-    .order("created_at", { ascending: true });
-  const initialNotionConnectors = notionConnectors ?? [];
 
   const appSlug = process.env.GITHUB_APP_SLUG;
   const installAppUrl =
@@ -113,7 +103,6 @@ export default async function ConnectorsPage() {
       )}
 
       <MediumConnector initialConnectors={initialMediumConnectors} />
-      <NotionConnector initialConnectors={initialNotionConnectors} />
       </div>
     </main>
   );

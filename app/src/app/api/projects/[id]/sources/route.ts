@@ -26,7 +26,7 @@ export async function POST(
 
   const { id: projectId } = await params;
 
-  let body: { connector_type?: string; external_id?: string };
+  let body: { connector_type?: string; external_id?: string; display_name?: string; url?: string };
   try {
     body = await request.json();
   } catch {
@@ -40,36 +40,36 @@ export async function POST(
     return NextResponse.json({ error: "connector_type and external_id are required" }, { status: 400 });
   }
 
-  if (connectorType !== "medium") {
-    return NextResponse.json({ error: "Unsupported connector_type" }, { status: 400 });
+  if (connectorType === "medium") {
+    // Validate external_id format
+    if (!/^@?[a-zA-Z0-9_-]+$/.test(externalId)) {
+      return NextResponse.json({ error: "Invalid username or publication slug" }, { status: 400 });
+    }
+
+    const rssUrl = buildRssUrl(externalId);
+
+    // Pre-flight: validate feed
+    let displayName: string | null = null;
+    try {
+      const feed = await parser.parseURL(rssUrl);
+      displayName = feed.title ?? externalId;
+    } catch {
+      return NextResponse.json({ error: "Feed not found or invalid. Check the username or slug." }, { status: 422 });
+    }
+
+    const { sourceId, error } = await addConnectorSource(projectId, user.userId, {
+      connectorType,
+      externalId,
+      url: rssUrl,
+      displayName,
+    });
+
+    if (error) {
+      return NextResponse.json({ error }, { status: error === "Project not found" ? 404 : 409 });
+    }
+
+    return NextResponse.json({ ok: true, sourceId }, { status: 201 });
   }
 
-  // Validate external_id format
-  if (!/^@?[a-zA-Z0-9_-]+$/.test(externalId)) {
-    return NextResponse.json({ error: "Invalid username or publication slug" }, { status: 400 });
-  }
-
-  const rssUrl = buildRssUrl(externalId);
-
-  // Pre-flight: validate feed
-  let displayName: string | null = null;
-  try {
-    const feed = await parser.parseURL(rssUrl);
-    displayName = feed.title ?? externalId;
-  } catch {
-    return NextResponse.json({ error: "Feed not found or invalid. Check the username or slug." }, { status: 422 });
-  }
-
-  const { sourceId, error } = await addConnectorSource(projectId, user.userId, {
-    connectorType,
-    externalId,
-    url: rssUrl,
-    displayName,
-  });
-
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "Project not found" ? 404 : 409 });
-  }
-
-  return NextResponse.json({ ok: true, sourceId }, { status: 201 });
+  return NextResponse.json({ error: "Unsupported connector_type" }, { status: 400 });
 }

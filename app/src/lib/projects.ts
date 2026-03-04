@@ -55,8 +55,9 @@ export interface AddRepoParams {
 export interface AddConnectorSourceParams {
   connectorType: string;
   externalId: string;
-  url: string;
+  url: string | null;
   displayName: string | null;
+  userConnectorId?: string;
 }
 
 export async function addConnectorSource(
@@ -78,31 +79,37 @@ export async function addConnectorSource(
     return { sourceId: null, error: "Project not found" };
   }
 
-  // Get or create user_connectors row for this connector type + external_id
-  let { data: connector } = await supabase
-    .from("user_connectors")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("type", params.connectorType)
-    .eq("external_id", params.externalId)
-    .maybeSingle();
-
-  if (!connector) {
-    const { data: newConnector, error: connectorError } = await supabase
+  // Resolve connector ID — either use the provided one or find/create by external_id
+  let connectorId: string;
+  if (params.userConnectorId) {
+    connectorId = params.userConnectorId;
+  } else {
+    let { data: connector } = await supabase
       .from("user_connectors")
-      .insert({
-        user_id: userId,
-        type: params.connectorType,
-        external_id: params.externalId,
-        display_name: params.displayName,
-      })
       .select("id")
-      .single();
-    if (connectorError || !newConnector) {
-      console.error("[projects] connector insert failed", { connectorError, userId });
-      return { sourceId: null, error: connectorError?.message ?? "Connector error" };
+      .eq("user_id", userId)
+      .eq("type", params.connectorType)
+      .eq("external_id", params.externalId)
+      .maybeSingle();
+
+    if (!connector) {
+      const { data: newConnector, error: connectorError } = await supabase
+        .from("user_connectors")
+        .insert({
+          user_id: userId,
+          type: params.connectorType,
+          external_id: params.externalId,
+          display_name: params.displayName,
+        })
+        .select("id")
+        .single();
+      if (connectorError || !newConnector) {
+        console.error("[projects] connector insert failed", { connectorError, userId });
+        return { sourceId: null, error: connectorError?.message ?? "Connector error" };
+      }
+      connector = newConnector;
     }
-    connector = newConnector;
+    connectorId = connector.id;
   }
 
   // Check if a source row already exists (possibly soft-deleted)
@@ -122,7 +129,7 @@ export async function addConnectorSource(
       .from("project_connector_sources")
       .update({
         active: true,
-        user_connector_id: connector.id,
+        user_connector_id: connectorId,
         url: params.url,
         display_name: params.displayName,
         updated_at: new Date().toISOString(),
@@ -139,7 +146,7 @@ export async function addConnectorSource(
     .from("project_connector_sources")
     .insert({
       project_id: projectId,
-      user_connector_id: connector.id,
+      user_connector_id: connectorId,
       connector_type: params.connectorType,
       external_id: params.externalId,
       display_name: params.displayName ?? params.externalId,
