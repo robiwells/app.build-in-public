@@ -168,10 +168,12 @@ function EditCardForm({
   card,
   onSave,
   onChecklistChange,
+  onClose,
 }: {
   card: KanbanCard;
   onSave: (title: string, description: string) => Promise<void>;
   onChecklistChange: (cardId: string, items: ChecklistItem[]) => void;
+  onClose: () => void;
 }) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description ?? "");
@@ -246,7 +248,13 @@ function EditCardForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onBlur={() => handleAutoSave(title, description)}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
+        onKeyDown={async (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (title.trim()) await handleAutoSave(title, description);
+            onClose();
+          }
+        }}
         maxLength={200}
         rows={2}
         placeholder="Card title"
@@ -1147,6 +1155,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
               card={editingCard}
               onSave={async (t, d) => { await handleSaveCard(editingCard, t, d); }}
               onChecklistChange={handleChecklistChange}
+              onClose={() => setEditingCardId(null)}
             />
           </div>
         </div>
