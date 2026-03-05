@@ -475,50 +475,55 @@ export default async function ProjectPage({
             {xpInCurrentLevel(project.xp, project.level)}/{xpToNextLevel(project.level)} XP
           </span>
         </div>
-        {project.description && (
-          <p className="mt-4 text-sm text-[#78716c]">
-            {project.description}
-          </p>
-        )}
-        {project.url && (
-          <div className="mt-4 space-y-2">
-            <a
-              href={project.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block overflow-hidden rounded-lg border border-[#e8ddd0] bg-[#f5f0e8]"
-            >
-              <img
-                src={project.screenshot_url ?? `/api/projects/${project.id}/screenshot`}
-                alt={`Preview of ${project.title}`}
-                className="h-auto w-full object-cover object-top"
-                width={1280}
-                height={800}
-              />
-            </a>
-            <a
-              href={project.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block text-sm text-[#b5522a] hover:underline"
-            >
-              {project.url}
-            </a>
-          </div>
-        )}
-        {project.project_repos.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {project.project_repos.map((r) => (
+        {(project.url || project.project_repos.length > 0 || project.description) && (
+          <div className="mt-4 flex gap-4">
+            {/* Left: screenshot thumbnail — only when URL present */}
+            {project.url && (
               <a
-                key={r.id}
-                href={r.repo_url}
+                href={project.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full bg-[#f5f0e8] px-3 py-1 text-sm text-[#78716c] hover:underline"
+                className="hidden sm:block shrink-0 w-52 h-36 overflow-hidden rounded-lg border border-[#e8ddd0] bg-[#f5f0e8]"
               >
-                {r.repo_full_name}
+                <img
+                  src={project.screenshot_url ?? `/api/projects/${project.id}/screenshot`}
+                  alt={`Preview of ${project.title}`}
+                  className="w-full h-full object-cover object-top"
+                />
               </a>
-            ))}
+            )}
+
+            {/* Right: description, URL, repos */}
+            <div className="flex flex-col gap-2 min-w-0">
+              {project.description && (
+                <p className="text-sm text-[#78716c]">{project.description}</p>
+              )}
+              {project.url && !project.screenshot_url && (
+                <a
+                  href={project.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#b5522a] hover:underline truncate"
+                >
+                  {project.url}
+                </a>
+              )}
+              {project.project_repos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {project.project_repos.map((r) => (
+                    <a
+                      key={r.id}
+                      href={r.repo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full bg-[#f5f0e8] px-3 py-1 text-sm text-[#78716c] hover:underline"
+                    >
+                      {r.repo_full_name}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </header>
