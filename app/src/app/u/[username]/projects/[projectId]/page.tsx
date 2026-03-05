@@ -31,6 +31,7 @@ type Project = {
   title: string;
   description: string | null;
   url: string | null;
+  screenshot_url: string | null;
   slug: string | null;
   xp: number;
   level: number;
@@ -94,6 +95,7 @@ async function getProjectData(
       title,
       description,
       url,
+      screenshot_url,
       slug,
       xp,
       level,
@@ -479,14 +481,30 @@ export default async function ProjectPage({
           </p>
         )}
         {project.url && (
-          <a
-            href={project.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block text-sm text-[#b5522a] hover:underline"
-          >
-            {project.url}
-          </a>
+          <div className="mt-4 space-y-2">
+            <a
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block overflow-hidden rounded-lg border border-[#e8ddd0] bg-[#f5f0e8]"
+            >
+              <img
+                src={project.screenshot_url ?? `/api/projects/${project.id}/screenshot`}
+                alt={`Preview of ${project.title}`}
+                className="h-auto w-full object-cover object-top"
+                width={1280}
+                height={800}
+              />
+            </a>
+            <a
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-sm text-[#b5522a] hover:underline"
+            >
+              {project.url}
+            </a>
+          </div>
         )}
         {project.project_repos.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">

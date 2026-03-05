@@ -198,7 +198,10 @@ export async function updateProject(
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (params.title !== undefined) updates.title = params.title;
   if (params.description !== undefined) updates.description = params.description;
-  if (params.url !== undefined) updates.url = params.url;
+  if (params.url !== undefined) {
+    updates.url = params.url;
+    updates.screenshot_url = null;
+  }
   if (params.category !== undefined) updates.category = params.category;
 
   if (params.title !== undefined) {
