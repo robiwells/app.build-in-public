@@ -77,6 +77,23 @@ body {
   animation: kanban-done 0.6s ease-out forwards;
 }
 
+/* ── Kanban theatre mode: full-width header border ─────────────────────────── */
+
+html[data-kanban-theatre] header {
+  position: relative;
+  border-bottom: none;
+}
+
+html[data-kanban-theatre] header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  height: 1px;
+  background-color: #e8ddd0;
+}
+
 /* ── Notion page view (react-notion-render with useStyles=false) ───────────── */
 
 .notion-content {

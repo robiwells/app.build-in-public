@@ -688,6 +688,26 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
   const [newColName, setNewColName] = useState("");
   const addingColRef = useRef(false);
   const [expandOpen, setExpandOpen] = useState(false);
+  const [theatreMode, setTheatreMode] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem(`kanban-theatre-${projectId}`) === "true"
+  );
+
+  useEffect(() => {
+    if (isOwner && theatreMode) {
+      document.documentElement.setAttribute("data-kanban-theatre", "true");
+    } else {
+      document.documentElement.removeAttribute("data-kanban-theatre");
+    }
+    return () => document.documentElement.removeAttribute("data-kanban-theatre");
+  }, [isOwner, theatreMode]);
+
+  function toggleTheatreMode() {
+    setTheatreMode((prev) => {
+      const next = !prev;
+      localStorage.setItem(`kanban-theatre-${projectId}`, String(next));
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!expandOpen) return;
@@ -1036,7 +1056,7 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
 
     return (
       <DndContext id="project-kanban" sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-        <div className={inModal ? "pb-3" : "max-h-[60vh] overflow-x-auto overflow-y-auto pb-3"}>
+        <div className={inModal ? "pb-3" : theatreMode ? "overflow-x-auto pb-3" : "max-h-[60vh] overflow-x-auto overflow-y-auto pb-3"}>
           <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
             <div className="flex gap-3 items-start" style={{ minWidth: "max-content" }}>
               {columns.map((column) => (
@@ -1101,26 +1121,46 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
     : null;
 
   return (
-    <div className="mt-6 mb-0">
+    <div suppressHydrationWarning className={`mt-6 mb-0 ${isOwner && theatreMode ? "w-screen ml-[calc(50%-50vw)] px-4 sm:px-8 py-4 bg-[#faf7f2] border-b border-[#e8ddd0]" : ""}`}>
       {/* Section header */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-[#78716c]">Board</span>
-        {columns.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setExpandOpen(true)}
-            className="rounded p-1 text-[#a8a29e] hover:bg-[#f5f0e8] hover:text-[#78716c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30"
-            aria-label="Expand board"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5" />
-            </svg>
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {isOwner && (
+            <button
+              type="button"
+              onClick={toggleTheatreMode}
+              className={`rounded p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30 ${theatreMode ? "text-[#b5522a] bg-[#f5f0e8]" : "text-[#a8a29e] hover:bg-[#f5f0e8] hover:text-[#78716c]"}`}
+              aria-label={theatreMode ? "Exit theatre mode" : "Theatre mode"}
+            >
+              {theatreMode ? (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 8h4M6 5l-3 3 3 3M10 5l3 3-3 3" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 8h12M2 5l3 3-3 3M14 5l-3 3 3 3" />
+                </svg>
+              )}
+            </button>
+          )}
+          {!theatreMode && columns.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpandOpen(true)}
+              className="rounded p-1 text-[#a8a29e] hover:bg-[#f5f0e8] hover:text-[#78716c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#b5522a]/30"
+              aria-label="Expand board"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Inline board (hidden when modal is open) */}
-      {expandOpen ? (
+      {/* Inline board (hidden when modal is open, always shown in theatre mode) */}
+      {!theatreMode && expandOpen ? (
         <div className="rounded-xl bg-[#f5f0e8] border border-dashed border-[#d6cfc6] h-24 flex items-center justify-center">
           <span className="text-sm text-[#a8a29e]">Board open in expanded view</span>
         </div>
@@ -1129,13 +1169,13 @@ export function ProjectKanban({ projectId, initialColumns, isOwner }: Props) {
       )}
 
       {/* Expanded board modal */}
-      {expandOpen && (
+      {expandOpen && !theatreMode && (
         <div
           className="fixed inset-0 z-50 bg-black/40"
           onClick={() => setExpandOpen(false)}
         >
           <div
-            className="fixed inset-4 z-50 rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden"
+            className="fixed inset-4 z-50 rounded-2xl bg-[#faf7f2] shadow-2xl flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
