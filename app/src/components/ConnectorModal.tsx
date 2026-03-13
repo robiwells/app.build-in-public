@@ -16,7 +16,7 @@ export type PendingConnectorSelection = {
   medium?: { external_id: string };
 };
 
-type Step = "pick-service" | "pick-github-repos" | "confirm-medium";
+type Step = "pick-service" | "pick-github-repos" | "confirm-medium" | "connect-github";
 
 export function ConnectorModal({
   projectId,
@@ -50,6 +50,15 @@ export function ConnectorModal({
   const [mediumSaving, setMediumSaving] = useState(false);
   const [mediumError, setMediumError] = useState("");
 
+  // connect-github step state
+  const [githubInstallUrl, setGithubInstallUrl] = useState<string | null>(null);
+  const [installUrlLoading, setInstallUrlLoading] = useState(false);
+  const [installStarted, setInstallStarted] = useState(false);
+
+  // configure-github state (no repos available)
+  const [configureInstallUrl, setConfigureInstallUrl] = useState<string | null>(null);
+  const [configureStarted, setConfigureStarted] = useState(false);
+
   useEffect(() => {
     fetch("/api/connectors")
       .then((r) => (r.ok ? r.json() : { connectors: [] }))
@@ -60,18 +69,74 @@ export function ConnectorModal({
       .finally(() => setConnectorsLoading(false));
   }, []);
 
+  // Poll for GitHub connector after install link is clicked
+  useEffect(() => {
+    if (step !== "connect-github" || !installStarted) return;
+
+    async function checkConnectors() {
+      const data = await fetch("/api/connectors").then((r) => r.json()).catch(() => ({ connectors: [] })) as { connectors?: UserConnector[] };
+      const connectors: UserConnector[] = data.connectors ?? [];
+      const gh = connectors.find((c) => c.type === "github");
+      if (gh) {
+        setUserConnectors(connectors);
+        selectConnector(gh);
+      }
+    }
+
+    const interval = setInterval(checkConnectors, 3000);
+    window.addEventListener("focus", checkConnectors);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", checkConnectors);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, installStarted]);
+
+  // Poll for repos after configure link is clicked
+  useEffect(() => {
+    if (step !== "pick-github-repos" || !configureStarted) return;
+
+    const countAtStart = githubAvailable.length;
+
+    async function checkRepos() {
+      const url = isCreateMode ? "/api/repos/available" : `/api/repos/available?projectId=${encodeURIComponent(projectId!)}`;
+      const data = await fetch(url).then((r) => (r.ok ? r.json() : { repos: [] })).catch(() => ({ repos: [] })) as { repos?: AvailableRepo[] };
+      const repos: AvailableRepo[] = data.repos ?? [];
+      if (repos.length > countAtStart) {
+        setGithubAvailable(repos);
+        setConfigureStarted(false);
+      }
+    }
+
+    const interval = setInterval(checkRepos, 3000);
+    window.addEventListener("focus", checkRepos);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", checkRepos);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, configureStarted]);
+
+  const githubConnectors = userConnectors.filter((c) => c.type === "github");
+  const hasGithub = githubConnectors.length > 0;
+
   const visibleConnectors = filterType
     ? userConnectors.filter((c) => c.type === filterType)
     : userConnectors;
 
+  const mediumConnectors = visibleConnectors.filter((c) => c.type === "medium");
+  const showGithubOption = !filterType || filterType === "github";
+
   function selectConnector(connector: UserConnector) {
     setSelectedConnector(connector);
     if (connector.type === "github") {
+      setConfigureStarted(false);
       setStep("pick-github-repos");
       setGithubLoading(true);
       setGithubAvailable([]);
       setGithubSelected(new Set());
       setGithubError("");
+      setConfigureInstallUrl(null);
       const url =
         isCreateMode || projectId === undefined
           ? "/api/repos/available"
@@ -88,6 +153,11 @@ export function ConnectorModal({
           } else {
             setGithubSelected(new Set());
           }
+          // Always fetch configure URL so user can add more repos even when some are already available
+          fetch("/api/github-app/install-url")
+            .then((r) => (r.ok ? r.json() : { url: null }))
+            .then((d: { url?: string | null }) => setConfigureInstallUrl(d.url ?? null))
+            .catch(() => null);
         })
         .catch(() => setGithubAvailable([]))
         .finally(() => setGithubLoading(false));
@@ -95,6 +165,18 @@ export function ConnectorModal({
       setStep("confirm-medium");
       setMediumError("");
     }
+  }
+
+  function startConnectGithub() {
+    setStep("connect-github");
+    setInstallStarted(false);
+    setGithubInstallUrl(null);
+    setInstallUrlLoading(true);
+    fetch("/api/github-app/install-url")
+      .then((r) => (r.ok ? r.json() : { url: null }))
+      .then((d: { url?: string | null }) => setGithubInstallUrl(d.url ?? null))
+      .catch(() => setGithubInstallUrl(null))
+      .finally(() => setInstallUrlLoading(false));
   }
 
   function toggleGithubRepo(fullName: string) {
@@ -197,6 +279,7 @@ export function ConnectorModal({
             {step === "pick-service" && "Add connector"}
             {step === "pick-github-repos" && "Add GitHub repo"}
             {step === "confirm-medium" && "Add Medium feed"}
+            {step === "connect-github" && "Connect GitHub"}
           </h2>
           <button
             type="button"
@@ -214,18 +297,45 @@ export function ConnectorModal({
             <>
               {connectorsLoading ? (
                 <p className="text-sm text-[#78716c]">Loading…</p>
-              ) : visibleConnectors.length === 0 ? (
-                <p className="text-sm text-[#78716c]">
-                  No connected services found. Set up connectors via the{" "}
-                  <a href="/connectors" className="text-[#b5522a] hover:underline">
-                    Connectors
-                  </a>{" "}
-                  page.
-                </p>
               ) : (
                 <div className="space-y-2">
                   <p className="mb-3 text-sm text-[#78716c]">Your connected services:</p>
-                  {visibleConnectors.map((c) => (
+
+                  {/* GitHub — always shown if not filtered out */}
+                  {showGithubOption && (
+                    <>
+                      {hasGithub ? (
+                        githubConnectors.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => selectConnector(c)}
+                            className="flex w-full items-center gap-3 rounded-lg border border-[#e8ddd0] px-3 py-2.5 text-left text-sm hover:border-[#c9b99a] hover:bg-[#faf7f2]"
+                          >
+                            <ConnectorIcon type="github" />
+                            <span className="text-[#2a1f14]">
+                              {c.display_name ?? `GitHub (${c.external_id})`}
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={startConnectGithub}
+                          className="flex w-full items-center gap-3 rounded-lg border border-[#e8ddd0] px-3 py-2.5 text-left text-sm hover:border-[#c9b99a] hover:bg-[#faf7f2]"
+                        >
+                          <ConnectorIcon type="github" />
+                          <span className="flex-1 text-[#2a1f14]">GitHub</span>
+                          <span className="rounded-full bg-[#f5f0e8] px-2 py-0.5 text-xs text-[#78716c]">
+                            Not connected
+                          </span>
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {/* Medium and other connectors */}
+                  {mediumConnectors.map((c) => (
                     <button
                       key={c.id}
                       type="button"
@@ -243,36 +353,127 @@ export function ConnectorModal({
             </>
           )}
 
+          {step === "connect-github" && (
+            <div className="space-y-4">
+              <div className="flex flex-col items-center gap-3 py-2">
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#24292e] text-lg font-bold text-white">
+                  GH
+                </span>
+                <p className="text-center text-sm text-[#78716c]">
+                  Install the GitHub App to link repos to your projects.
+                </p>
+              </div>
+
+              {installUrlLoading ? (
+                <p className="text-center text-sm text-[#78716c]">Loading…</p>
+              ) : githubInstallUrl ? (
+                <a
+                  href={githubInstallUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setInstallStarted(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[#24292e] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d3d3d]"
+                >
+                  Install GitHub App ↗
+                </a>
+              ) : (
+                <p className="text-center text-xs text-red-600">
+                  Could not load install link — please try again.
+                </p>
+              )}
+
+              <div className="border-t border-[#e8ddd0] pt-3">
+                {installStarted ? (
+                  <p className="mb-2 flex items-center gap-2 text-xs text-[#78716c]">
+                    <SpinnerIcon />
+                    Waiting for GitHub App installation…
+                  </p>
+                ) : (
+                  <p className="mb-2 text-xs text-[#78716c]">Click the link above to install the GitHub App.</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setStep("pick-service")}
+                  className="rounded-full px-4 py-1.5 text-sm text-[#78716c] hover:text-[#2a1f14]"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
+          )}
+
           {step === "pick-github-repos" && (
             <>
               {githubLoading ? (
                 <p className="text-sm text-[#78716c]">Loading repos…</p>
               ) : githubAvailable.length === 0 ? (
-                <p className="text-sm text-[#78716c]">
-                  No available repos. All repos may already be linked to projects.
-                </p>
-              ) : (
-                <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-[#e8ddd0] p-2">
-                  {githubAvailable.map((r) => (
-                    <label
-                      key={r.full_name}
-                      className={[
-                        "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                        githubSelected.has(r.full_name)
-                          ? "bg-[#f5f0e8] text-[#2a1f14]"
-                          : "text-[#78716c] hover:bg-[#faf7f2]",
-                      ].join(" ")}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={githubSelected.has(r.full_name)}
-                        onChange={() => toggleGithubRepo(r.full_name)}
-                        className="h-4 w-4 rounded border-[#e8ddd0] text-[#b5522a] focus:ring-[#b5522a]/30"
-                      />
-                      <span className="truncate">{r.full_name}</span>
-                    </label>
-                  ))}
+                <div className="space-y-3">
+                  <p className="text-sm text-[#78716c]">
+                    No repos available — the repo you need may not be accessible to the GitHub App.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {configureInstallUrl && (
+                      <a
+                        href={configureInstallUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setConfigureStarted(true)}
+                        className="flex items-center justify-center gap-2 rounded-full bg-[#24292e] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#3d3d3d]"
+                      >
+                        Configure GitHub App ↗
+                      </a>
+                    )}
+                    {configureStarted && (
+                      <p className="flex items-center gap-2 text-xs text-[#78716c]">
+                        <SpinnerIcon />
+                        Waiting for repo access…
+                      </p>
+                    )}
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-[#e8ddd0] p-2">
+                    {githubAvailable.map((r) => (
+                      <label
+                        key={r.full_name}
+                        className={[
+                          "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                          githubSelected.has(r.full_name)
+                            ? "bg-[#f5f0e8] text-[#2a1f14]"
+                            : "text-[#78716c] hover:bg-[#faf7f2]",
+                        ].join(" ")}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={githubSelected.has(r.full_name)}
+                          onChange={() => toggleGithubRepo(r.full_name)}
+                          className="h-4 w-4 rounded border-[#e8ddd0] text-[#b5522a] focus:ring-[#b5522a]/30"
+                        />
+                        <span className="truncate">{r.full_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {configureInstallUrl && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <a
+                        href={configureInstallUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setConfigureStarted(true)}
+                        className="text-xs text-[#78716c] underline hover:text-[#2a1f14]"
+                      >
+                        Configure GitHub App ↗
+                      </a>
+                      {configureStarted && (
+                        <span className="flex items-center gap-1 text-xs text-[#78716c]">
+                          <SpinnerIcon />
+                          Waiting for repo access…
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
               {githubError && (
                 <p className="mt-2 text-xs text-red-600">{githubError}</p>
@@ -334,6 +535,21 @@ export function ConnectorModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg
+      className="h-3 w-3 animate-spin text-[#78716c]"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+    </svg>
   );
 }
 
